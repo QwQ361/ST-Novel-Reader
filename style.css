@@ -453,14 +453,6 @@
   );
 }
 
-.novel-toc-item-num {
-  display: inline-block;
-  min-width: 3.5em;
-  font-weight: 600;
-  /* 内置主题用 --novel-accent；跟随酒馆时回退 --SmartThemeMainColor */
-  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
-}
-
 .novel-toc-item-title {
   opacity: 0.9;
 }

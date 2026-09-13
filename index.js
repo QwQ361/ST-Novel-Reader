@@ -755,7 +755,6 @@ jQuery(async () => {
       // 自动识别标题开启且本章标题来自标签时，在「第N章」后附加副标题
       const tagTitle = ch.titleSource === "tag" ? ch.title : "";
       item.innerHTML = `
-        <span class="novel-toc-item-num">${escapeHtml(String(ch.index))}</span>
         <span class="novel-toc-item-title">${escapeHtml("第" + String(ch.index) + "章")}</span>
         ${
           tagTitle
