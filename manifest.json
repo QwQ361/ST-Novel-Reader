@@ -1,0 +1,11 @@
+{
+  "display_name": "酒馆小说阅读器",
+  "loading_order": 1001,
+  "requires": [],
+  "optional": [],
+  "js": "index.js",
+  "css": "style.css",
+  "author": "QwQ&AI",
+  "version": "1.0.0",
+  "description": "把聊天记录像小说一样随时查阅，支持跨角色、跨聊天浏览"
+}

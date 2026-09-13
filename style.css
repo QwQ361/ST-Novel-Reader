@@ -1,0 +1,2048 @@
+/* ============================================================
+   酒馆小说阅读器 —— 样式表 v2（全屏双栏布局）
+   命名规范：统一 novel- 前缀
+   移动端铁律（MOBILE-POPUP-FIX.md）：
+     1) overlay 一律不加 overflow（WebView fixed+overflow flex bug）
+     2) 移动端媒体查询放本文件末尾
+     3) 弹窗容器用 margin:auto
+     4) 高度用 100vh
+   ============================================================ */
+
+/* ---------- 遮罩弹窗（全屏） ---------- */
+.novel-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100010;
+  /* 与 dialog 同源跟随主题（采样色 → ST 变量 → 默认暗色） */
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #14161a));
+  /* 铁律 1：不加 overflow */
+}
+
+.novel-dialog {
+  width: 100vw;
+  height: 100vh; /* 铁律 4：vh 回退（旧浏览器） */
+  height: 100dvh; /* 动态视口：移动端地址栏显隐时自适应，避免底部被遮挡 */
+  max-height: 100vh;
+  max-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  margin: auto; /* 铁律 3 */
+  /* 主题跟随：优先 JS 采样色（--novel-bg/--novel-fg），
+     未采样到时回退 ST 主题变量，再回退默认暗色 */
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #14161a));
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  overflow: hidden; /* 仅隐藏，不在 overlay 上 */
+}
+
+/* 紧凑弹窗（设置类小弹窗）：非全屏、居中、内容区可滚动 */
+.novel-dialog-compact {
+  width: min(460px, 92vw);
+  height: auto;
+  max-height: 85vh;
+  border-radius: 14px;
+  border: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.15));
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+}
+
+.novel-dialog-compact .novel-dialog-content {
+  overflow-y: auto; /* 仅内容区可滚动，overlay 不加 overflow（铁律 1） */
+  padding: 18px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* ---------- 弹窗头部：标题靠左、关闭按钮靠右（右上角） ---------- */
+.novel-dialog-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid
+    var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 6%,
+    transparent
+  );
+}
+
+.novel-dialog-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  line-height: 1.3;
+}
+
+/* 右上角关闭按钮（×）：圆形图标按钮，悬停变红 */
+.novel-dialog-close {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  border-radius: 50%;
+  cursor: pointer;
+  user-select: none;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.novel-dialog-close:hover {
+  background: rgba(220, 60, 60, 0.75);
+  color: #fff;
+}
+
+/* ---------- 弹窗内容区（index.js 将 modal content 设为 novel-shell） ---------- */
+.novel-shell {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---------- 顶部栏（全局设置，常显） ---------- */
+.novel-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-bottom: 1px solid
+    var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+  /* 跟随主题：用前景色低透明度做顶栏底色（浅色/深色主题均协调） */
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+  z-index: 5;
+}
+
+.novel-topbar-back {
+  flex: 0 0 auto;
+}
+
+.novel-topbar-title {
+  flex: 0 0 auto;
+  font-weight: 700;
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.novel-topbar-search {
+  flex: 1 1 auto;
+  min-width: 120px;
+}
+
+.novel-topbar-search input {
+  width: 100%;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 6%,
+    transparent
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  outline: none;
+}
+
+.novel-topbar-search input:focus {
+  border-color: var(--SmartThemeMainColor, #4f8cff);
+}
+
+.novel-topbar-spacer {
+  flex: 1 1 auto;
+}
+
+.novel-icon-btn {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  /* 跟随主题：前景色低透明度做按钮底色（浅色/深色均协调） */
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  user-select: none;
+  font-size: 0.95rem;
+  /* 统一按钮内部布局：不同 glyph（⚙/×/←）行高一致，避免高度差 */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.novel-icon-btn:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+    transparent
+  );
+}
+
+/* 右上角关闭按钮（×）：与 ⚙ 按钮尺寸一致，仅字体加粗悬停变红 */
+.novel-icon-close {
+  font-weight: 700;
+  font-size: 0.95rem; /* 与基础 icon-btn 同字号（inherit 会取父级导致变小） */
+  line-height: 1;
+  padding: 6px 12px; /* 与默认按钮相同，保证高度一致 */
+}
+
+.novel-icon-close:hover {
+  background: rgba(220, 60, 60, 0.75);
+  border-color: rgba(255, 120, 120, 0.6);
+  color: #fff;
+}
+
+/* ---------- 内容区（状态机切换） ---------- */
+.novel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
+}
+
+.novel-page {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* ---------- 卡片网格（角色 / 聊天） ---------- */
+.novel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  align-content: start;
+}
+
+.novel-card {
+  padding: 12px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 6%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
+  min-width: 0;
+}
+
+.novel-card:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+  border-color: var(--SmartThemeMainColor, #4f8cff);
+}
+
+/* 书架角色卡：纵向居中（头像在上，名字/版本在下） */
+.novel-char-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 14px 12px 12px;
+  gap: 6px;
+}
+
+.novel-card-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 2px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.2);
+}
+
+.novel-card-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.novel-char-card .novel-card-title {
+  max-width: 100%;
+}
+
+.novel-char-card .novel-card-meta {
+  margin-top: 0;
+}
+
+.novel-card-title {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 聊天卡片：标题允许换行，避免长名字被截成省略号 */
+.novel-chat-card .novel-card-title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-all;
+  line-height: 1.35;
+}
+
+.novel-card-preview {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  margin-top: 4px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.novel-card-meta {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  margin-top: 6px;
+}
+
+/* ---------- 目录页 ---------- */
+.novel-toc {
+  max-width: 760px;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.novel-toc-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.novel-toc-head h2 {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.novel-toc-sub {
+  font-size: 0.85rem;
+  opacity: 0.6;
+}
+
+/* 目录头最右侧书签按钮：查看当前聊天的收藏章节 */
+.novel-toc-bookmark-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+      transparent
+    );
+  font-size: 0.85rem;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.novel-toc-bookmark-btn:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+    transparent
+  );
+}
+
+/* 收藏按钮内 SVG 图标：描边风格，display:block 避免基线偏移 */
+.novel-toc-bookmark-btn svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  stroke-width: 2;
+  margin-top: 1px;
+}
+
+.novel-toc-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.novel-toc-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 4%,
+    transparent
+  );
+  border: 1px solid transparent;
+  transition: background 0.15s ease;
+}
+
+.novel-toc-item:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+
+.novel-toc-item-num {
+  display: inline-block;
+  min-width: 3.5em;
+  font-weight: 600;
+  /* 内置主题用 --novel-accent；跟随酒馆时回退 --SmartThemeMainColor */
+  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+}
+
+.novel-toc-item-title {
+  opacity: 0.9;
+}
+
+/* 自动识别标题：附加在「第N章」后的章节副标题（flex 垂直居中与「第N章」同一水平线） */
+.novel-toc-item-sub {
+  margin-left: 8px;
+  font-size: inherit;
+  opacity: 0.9;
+  font-weight: inherit;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 60%;
+  min-width: 0;
+}
+
+/* 目录分页控件 */
+.novel-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.novel-pager-info {
+  font-size: 0.85rem;
+  opacity: 0.7;
+  min-width: 8em;
+  text-align: center;
+}
+
+/* ---------- 正文阅读页 ---------- */
+.novel-reader-page {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.novel-reader-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px 16px 80px; /* 底部留出设置栏空间 */
+}
+
+.novel-reader-inner {
+  max-width: 720px; /* Word 风格：正文居中，两侧留白 */
+  margin: 0 auto;
+}
+
+.novel-chapter-title {
+  font-size: 1.5em;
+  font-weight: 700;
+  text-align: center;
+  margin: 8px 0 6px;
+  padding-bottom: 0;
+  /* 章标题颜色跟随主题正文色（避免硬编码主题主色） */
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+}
+
+/* 章标题副行：「第N章 章节名」（仅标签识别标题时附带章节名） */
+.novel-chapter-subtitle {
+  font-size: 1.05em;
+  font-weight: 500;
+  text-align: center;
+  margin: 0 0 24px;
+  padding-bottom: 12px;
+  opacity: 0.75;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+}
+
+/* ---------- 小说消息 ---------- */
+.novel-msg-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.novel-msg {
+  margin-bottom: 16px;
+  animation: novel-fade-in 0.2s ease;
+}
+
+.novel-msg-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.novel-msg-name {
+  font-weight: 700;
+  /* 内置主题用 --novel-accent；跟随酒馆时回退正文前景色（避免美化主题主色偏蓝）
+     用户/系统消息仍用各自的专用强调色 */
+  color: var(--novel-accent, var(--novel-fg, var(--SmartThemeBodyColor, #ddd)));
+}
+
+.novel-msg-user .novel-msg-name {
+  color: var(--SmartThemeUserMesBlurTintColor, #d4a017);
+}
+
+.novel-msg-system .novel-msg-name {
+  color: var(--SmartThemeSysMesBlurTintColor, #999);
+}
+
+.novel-msg-time {
+  font-size: 0.75rem;
+  opacity: 0.5;
+}
+
+.novel-msg-body {
+  line-height: 1.8;
+  word-break: break-word;
+  white-space: normal;
+  /* 正文文字色跟随主题（采样色 → ST 变量 → 默认） */
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+}
+
+.novel-msg-body p {
+  margin: 0 0 8px;
+}
+
+.novel-msg-body p:last-child {
+  margin-bottom: 0;
+}
+
+.novel-msg-body img {
+  max-width: 100%;
+  border-radius: 6px;
+}
+
+/* 内联强调元素（em/strong/q）与块引用/代码样式定义在下方「内置主题」区块：
+   优先用主题变量，跟随酒馆时回退 --novel-fg / --SmartTheme* */
+
+.novel-msg-body table {
+  border-collapse: collapse;
+  margin: 8px 0;
+}
+
+.novel-msg-body th,
+.novel-msg-body td {
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 25%,
+      transparent
+    );
+  padding: 4px 10px;
+}
+
+/* ---------- 阅读器内置主题（∅ = 跟随酒馆，不设 class） ----------
+   每套主题定义一组 CSS 变量，作用于 .novel-dialog（背景/文字）
+   及正文内联元素（引号/星号/加粗/块引用/代码）：
+     --novel-bg              正文背景
+     --novel-fg              正文文字
+     --novel-em-color        星号斜体文字色（em）
+     --novel-strong-color    双星号加粗文字色（strong）
+     --novel-quote-color     引号文字色（q）与块引用边框
+     --novel-blockquote-bg   块引用背景
+     --novel-code-bg         行内代码/代码块背景
+     --novel-border          弱边框（供 pre/table 等细节元素）
+     --novel-accent          强调色（说话人名/章标题/目录序号，∅ 时回退 --SmartThemeMainColor）
+   正文内联元素优先用这些变量（见下方 .novel-msg-body em/strong/q 等），
+   未选中内置主题时（∅）这些变量不定义，回退 --novel-fg / --SmartTheme*。
+   内置主题与酒馆美化桥接互斥：选内置主题时 theme-text.js 关闭桥接。 */
+
+.novel-dialog.novel-theme-warmpaper,
+.novel-overlay.novel-theme-warmpaper {
+  --novel-bg: #f5f0e6;
+  --novel-fg: #4a3f35;
+  --novel-em-color: #a0522d;
+  --novel-strong-color: #8b4513;
+  --novel-quote-color: #6b4f3a;
+  --novel-blockquote-bg: rgba(107, 79, 58, 0.08);
+  --novel-code-bg: rgba(74, 63, 53, 0.08);
+  --novel-border: rgba(74, 63, 53, 0.18);
+  --novel-accent: #8b4513;
+}
+
+.novel-dialog.novel-theme-midnight,
+.novel-overlay.novel-theme-midnight {
+  --novel-bg: #14161a;
+  --novel-fg: #d6d8dc;
+  --novel-em-color: #7fd1c0;
+  --novel-strong-color: #ffffff;
+  --novel-quote-color: #9aa7b5;
+  --novel-blockquote-bg: rgba(154, 167, 181, 0.08);
+  --novel-code-bg: rgba(214, 216, 220, 0.08);
+  --novel-border: rgba(214, 216, 220, 0.18);
+  --novel-accent: #7fd1c0;
+}
+
+.novel-dialog.novel-theme-tealink,
+.novel-overlay.novel-theme-tealink {
+  --novel-bg: #0f1b1d;
+  --novel-fg: #cfe3d8;
+  --novel-em-color: #a8e6cf;
+  --novel-strong-color: #eafff2;
+  --novel-quote-color: #7fb3a8;
+  --novel-blockquote-bg: rgba(127, 179, 168, 0.1);
+  --novel-code-bg: rgba(207, 227, 216, 0.08);
+  --novel-border: rgba(207, 227, 216, 0.16);
+  --novel-accent: #7fb3a8;
+}
+
+.novel-dialog.novel-theme-rose,
+.novel-overlay.novel-theme-rose {
+  --novel-bg: #241a1e;
+  --novel-fg: #e6d3d8;
+  --novel-em-color: #f0a6b8;
+  --novel-strong-color: #ffe3ea;
+  --novel-quote-color: #c98a9b;
+  --novel-blockquote-bg: rgba(201, 138, 155, 0.1);
+  --novel-code-bg: rgba(230, 211, 216, 0.08);
+  --novel-border: rgba(230, 211, 216, 0.16);
+  --novel-accent: #f0a6b8;
+}
+
+.novel-dialog.novel-theme-forest,
+.novel-overlay.novel-theme-forest {
+  --novel-bg: #141c15;
+  --novel-fg: #d5e2d2;
+  --novel-em-color: #a3d9a5;
+  --novel-strong-color: #eaf7e8;
+  --novel-quote-color: #8fb892;
+  --novel-blockquote-bg: rgba(143, 184, 146, 0.1);
+  --novel-code-bg: rgba(213, 226, 210, 0.08);
+  --novel-border: rgba(213, 226, 210, 0.16);
+  --novel-accent: #a3d9a5;
+}
+
+.novel-dialog.novel-theme-ocean,
+.novel-overlay.novel-theme-ocean {
+  --novel-bg: #101826;
+  --novel-fg: #ccd9ea;
+  --novel-em-color: #7fb5ff;
+  --novel-strong-color: #e8f0ff;
+  --novel-quote-color: #8fb4d9;
+  --novel-blockquote-bg: rgba(143, 180, 217, 0.1);
+  --novel-code-bg: rgba(204, 217, 234, 0.08);
+  --novel-border: rgba(204, 217, 234, 0.16);
+  --novel-accent: #7fb5ff;
+}
+
+/* 正文内联元素：优先用内置主题变量，回退跟随酒馆（--novel-fg / --SmartTheme*） */
+.novel-msg-body em {
+  font-style: italic;
+  color: var(--novel-em-color, inherit);
+}
+
+.novel-msg-body strong {
+  font-weight: 700;
+  color: var(--novel-strong-color, inherit);
+}
+
+/* 引号字符已由渲染管线保留在 <q> 元素内（“文字”），
+   故此处只上色，不再用 ::before/::after 生成引号，避免双重引号 */
+.novel-msg-body q {
+  color: var(--novel-quote-color, inherit);
+}
+
+/* 禁用浏览器 UA 默认的 q 自动引号（q::before { content: open-quote }），
+   否则 UA 会再包一层引号，导致双重引号 */
+.novel-msg-body q::before,
+.novel-msg-body q::after {
+  content: none;
+}
+
+/* 块引用/代码：内置主题用自带背景，跟随酒馆时用前景色低透明 */
+.novel-msg-body blockquote {
+  margin: 6px 0;
+  padding-left: 12px;
+  border-left: 3px solid
+    var(
+      --novel-quote-color,
+      color-mix(
+        in srgb,
+        var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 30%,
+        transparent
+      )
+    );
+  background: var(--novel-blockquote-bg, transparent);
+  opacity: 0.85;
+}
+
+.novel-msg-body pre,
+.novel-msg-body code {
+  background: var(
+    --novel-code-bg,
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+      transparent
+    )
+  );
+}
+
+.novel-msg-body pre {
+  overflow-x: auto;
+  padding: 10px;
+  border-radius: 6px;
+}
+
+@keyframes novel-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ---------- 底部栏（小说设置，正文页点击屏幕后显隐） ---------- */
+.novel-bottombar {
+  position: relative; /* 界面设置面板以其为定位父级（bottom:100% 弹出在上方） */
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+  /* 跟随主题：用前景色低透明度做底栏底色 */
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+  z-index: 5;
+  flex-wrap: wrap;
+}
+
+/* 正文页：点击屏幕中部切换顶/底栏显隐（隐藏时 class 为 novel-chrome-hidden） */
+.novel-chrome-hidden .novel-topbar,
+.novel-chrome-hidden .novel-bottombar {
+  display: none;
+}
+
+.novel-bottombar .novel-btn {
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+      transparent
+    );
+  user-select: none;
+  font-size: 0.92rem;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+}
+
+.novel-bottombar .novel-btn:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+    transparent
+  );
+}
+
+.novel-bottombar .novel-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* 底部栏书签按钮：当前章节已收藏时高亮（实心强调） */
+.novel-bottombar .novel-btn.novel-bookmark-active {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 28%,
+    transparent
+  );
+  border-color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+}
+
+/* ---------- 收藏章节弹窗 ---------- */
+.novel-bookmark-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+}
+
+.novel-bookmark-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+      transparent
+    );
+  transition: background 0.15s ease;
+}
+
+.novel-bookmark-item:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+.novel-bookmark-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.novel-bookmark-title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.novel-bookmark-meta {
+  font-size: 0.8rem;
+  opacity: 0.6;
+}
+
+.novel-bookmark-del {
+  flex: 0 0 auto;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  font-size: 1.1rem;
+  line-height: 1;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  opacity: 0.6;
+  transition: all 0.15s ease;
+}
+
+.novel-bookmark-del:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    #e5484d 20%,
+    transparent
+  );
+  color: #e5484d;
+}
+
+.novel-btn-primary {
+  background: var(--SmartThemeMainColor, #4f8cff);
+  color: #fff;
+  border-color: transparent;
+}
+
+/* ---------- 界面设置子面板 ---------- */
+.novel-settings-panel {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, 92vw);
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #22252b));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.novel-settings-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.novel-settings-label {
+  font-size: 0.85rem;
+  opacity: 0.8;
+  font-weight: 600;
+}
+
+.novel-settings-row input[type="range"] {
+  width: 100%;
+}
+
+.novel-settings-value {
+  font-size: 0.8rem;
+  opacity: 0.7;
+  text-align: right;
+}
+
+.novel-settings-hint {
+  font-size: 0.78rem;
+  opacity: 0.55;
+  line-height: 1.5;
+}
+
+/* 自动识别标题：识别标签输入行 */
+.novel-chapter-title-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.novel-chapter-title-tag-row .novel-settings-label {
+  flex: none;
+  font-size: 0.78rem;
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.novel-chapter-title-tag {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    var(--novel-bg, var(--SmartThemeBlurTintColor, #232323))
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.85rem;
+}
+
+.novel-chapter-title-tag:focus {
+  outline: none;
+  border-color: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 60%,
+    transparent
+  );
+}
+
+.novel-chapter-title-tag-row .novel-settings-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 自动识别标题：剥离章号前缀开关行 */
+.novel-chapter-title-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.novel-chapter-title-strip-row .novel-settings-label {
+  flex: none;
+  font-size: 0.78rem;
+  opacity: 0.6;
+  font-weight: 500;
+}
+
+.novel-chapter-title-strip-row .novel-settings-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 自动识别标题：过滤文字多行输入 */
+.novel-chapter-title-filter-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.novel-chapter-title-filter-row .novel-settings-label {
+  flex: none;
+  font-size: 0.78rem;
+  opacity: 0.6;
+  font-weight: 500;
+  line-height: 1.5;
+  padding-top: 4px;
+}
+
+.novel-chapter-title-filter {
+  flex: 1 1 auto;
+  min-width: 0;
+  resize: vertical;
+  padding: 5px 8px;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    var(--novel-bg, var(--SmartThemeBlurTintColor, #232323))
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.85rem;
+  line-height: 1.5;
+  font-family: inherit;
+}
+
+.novel-chapter-title-filter:focus {
+  outline: none;
+  border-color: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 60%,
+    transparent
+  );
+}
+
+.novel-chapter-title-filter-row .novel-settings-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---------- 设置开关（显示用户回复） ---------- */
+.novel-switch {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  width: 44px;
+  height: 24px;
+  flex: none;
+}
+
+.novel-switch input {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.novel-switch-track {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+    transparent
+  );
+  transition: background 0.2s;
+}
+
+.novel-switch-thumb {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  transition: transform 0.2s, background 0.2s;
+}
+
+.novel-switch input:checked + .novel-switch-track {
+  background: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+.novel-switch input:checked + .novel-switch-track + .novel-switch-thumb {
+  transform: translateX(20px);
+  background: #fff;
+}
+
+/* ---------- 自定义顶栏图标配置（全局设置弹窗） ---------- */
+.novel-icon-config-section {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+.novel-icon-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  position: relative;
+}
+
+.novel-icon-url-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 6%,
+    transparent
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.85rem;
+  outline: none;
+}
+
+.novel-icon-url-input:focus {
+  border-color: var(--SmartThemeMainColor, #4f8cff);
+}
+
+.novel-icon-dropdown-btn,
+.novel-icon-clear-btn {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.novel-icon-dropdown-btn:hover,
+.novel-icon-clear-btn:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+    transparent
+  );
+}
+
+.novel-icon-clear-btn:hover {
+  color: #ff6b6b;
+  border-color: rgba(255, 107, 107, 0.5);
+}
+
+/* ---------- 正则过滤（全局设置弹窗） ---------- */
+.novel-regex-section {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+.novel-regex-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.novel-regex-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    transparent
+  );
+  font-size: 0.82rem;
+  transition: background 0.15s;
+}
+
+.novel-regex-item:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+
+.novel-regex-item input[type="checkbox"] {
+  flex: 0 0 auto;
+  accent-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  cursor: pointer;
+}
+
+.novel-regex-badge {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 4px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+    transparent
+  );
+  opacity: 0.85;
+}
+
+.novel-regex-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+}
+
+.novel-regex-empty {
+  font-size: 0.78rem;
+  opacity: 0.55;
+  line-height: 1.5;
+  padding: 4px 0;
+}
+
+/* 预设正则子区块（位于正则过滤下方） */
+.novel-regex-preset-section {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+.novel-regex-preset-select {
+  width: 100%;
+  margin: 4px 0 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    var(--novel-bg, var(--SmartThemeBlurTintColor, #232323))
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.82rem;
+}
+
+/* 设置弹窗「打开时显示」下拉框（与预设正则选择器同风格） */
+.novel-start-page-select {
+  width: 100%;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    var(--novel-bg, var(--SmartThemeBlurTintColor, #232323))
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.85rem;
+}
+
+.novel-regex-preset-search {
+  width: 100%;
+  margin: 4px 0 0;
+  padding: 6px 8px;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    var(--novel-bg, var(--SmartThemeBlurTintColor, #232323))
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.82rem;
+  outline: none;
+}
+
+.novel-regex-preset-search:focus {
+  border-color: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4caf92)) 60%,
+    transparent
+  );
+}
+
+.novel-regex-preset-search::placeholder {
+  color: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 40%,
+    transparent
+  );
+}
+
+/* 预设正则搜索行：搜索框 + 文件夹过滤按钮同一行（flex 布局，对齐 CFM cfm-wi-preset-edit-search） */
+.novel-regex-preset-search-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* flex 布局下搜索 input 自适应剩余宽度（覆盖上面的 width:100%） */
+.novel-regex-preset-search-row .novel-regex-preset-search {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+/* CFM 文件夹过滤按钮（顶栏角色搜索 + 设置弹窗预设搜索共用） */
+.novel-cfm-folder-btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  margin-left: 4px;
+  padding: 0;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    var(--novel-bg, var(--SmartThemeBlurTintColor, #232323))
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.9rem;
+  cursor: pointer;
+  opacity: 0.75;
+  transition: opacity 0.2s, border-color 0.2s, color 0.2s;
+  outline: none;
+}
+.novel-cfm-folder-btn:hover {
+  opacity: 1;
+}
+.novel-cfm-folder-btn:focus {
+  border-color: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4caf92)) 60%,
+    transparent
+  );
+}
+
+/* 顶栏搜索区：搜索框 + 按钮并排（flex 布局） */
+.novel-topbar-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* flex 布局下搜索 input 自适应剩余宽度（覆盖上面的 width:100%） */
+.novel-topbar-search input {
+  flex: 1 1 auto;
+  width: auto;
+  min-width: 0;
+}
+
+/* ---------- CFM 文件夹过滤浮动面板（参照 CFM native-filters 面板） ---------- */
+.novel-cfm-panel {
+  position: fixed;
+  z-index: 100020; /* 高于 .novel-overlay(100010) 与 compact 弹窗 */
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #232323));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  min-width: 220px;
+  max-width: 320px;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  backdrop-filter: blur(12px);
+}
+.novel-cfm-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+      transparent
+    );
+  flex-shrink: 0;
+  font-size: 0.82rem;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+}
+.novel-cfm-toolbar-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.novel-cfm-toolbar-actions {
+  display: flex;
+  gap: 8px;
+}
+.novel-cfm-toolbar-actions i {
+  cursor: pointer;
+  font-size: 12px;
+  opacity: 0.6;
+  transition: opacity 0.2s;
+}
+.novel-cfm-toolbar-actions i:hover {
+  opacity: 1;
+}
+.novel-cfm-tree {
+  overflow-y: auto;
+  padding: 4px 0;
+  flex: 1 1 auto;
+}
+.novel-cfm-tnode {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 12px;
+  cursor: pointer;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.82rem;
+  white-space: nowrap;
+  user-select: none;
+}
+.novel-cfm-tnode:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+}
+.novel-cfm-tnode-selected {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4caf92)) 18%,
+    transparent
+  );
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4caf92));
+}
+.novel-cfm-tnode-arrow {
+  width: 18px;
+  text-align: center;
+  font-size: 10px;
+  opacity: 0.5;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.novel-cfm-tnode-arrow.novel-cfm-arrow-expanded {
+  transform: rotate(90deg);
+}
+.novel-cfm-tnode-arrow.novel-cfm-arrow-hidden {
+  visibility: hidden;
+}
+.novel-cfm-tnode-icon {
+  flex-shrink: 0;
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+.novel-cfm-tnode-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.novel-regex-preset-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* 下拉菜单（绝对定位在输入行下方） */
+.novel-icon-dropdown-menu {
+  display: none;
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 220px;
+  overflow-y: auto;
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #232323));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+.novel-icon-dropdown-menu.novel-dropdown-open {
+  display: block;
+}
+
+.novel-icon-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.82rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.novel-icon-dropdown-item:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+
+.novel-icon-dropdown-item.novel-icon-selected {
+  background: color-mix(
+    in srgb,
+    var(--SmartThemeMainColor, #4f8cff) 18%,
+    transparent
+  );
+}
+
+.novel-icon-preview {
+  flex: 0 0 auto;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+}
+
+.novel-icon-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 状态提示 */
+.novel-icon-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.novel-icon-status-dot {
+  flex: 0 0 auto;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.novel-icon-status-dot.novel-status-active {
+  background: #4caf50;
+  box-shadow: 0 0 6px rgba(76, 175, 80, 0.6);
+}
+
+.novel-icon-status-dot.novel-status-inactive {
+  background: rgba(128, 128, 128, 0.5);
+}
+
+.novel-swatches {
+  /* 等距铺满整行：7 个主题项 flex-grow 均分 */
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.novel-swatch-item {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+}
+
+.novel-swatch {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  /* 纯色块 + 浅色轮廓（暗色主题也清晰可见），不再加内圈高光 */
+  border: 2px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 55%,
+      transparent
+    );
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 0.12s ease,
+    border-color 0.12s ease,
+    box-shadow 0.12s ease;
+}
+
+/* ∅ 跟随酒馆：调色板样式（多彩色环，示意跟随酒馆配色变化） */
+.novel-swatch-palette {
+  background: conic-gradient(
+    #f94144,
+    #f8961e,
+    #f9c74f,
+    #90be6d,
+    #43aa8b,
+    #277da1,
+    #577590,
+    #9b5de5,
+    #f94144
+  );
+}
+
+.novel-swatch:hover {
+  transform: scale(1.1);
+  filter: brightness(1.12);
+}
+
+.novel-swatch.active {
+  border-color: var(--SmartThemeMainColor, #4f8cff);
+  box-shadow: 0 0 8px
+    color-mix(in srgb, var(--SmartThemeMainColor, #4f8cff) 60%, transparent);
+  transform: scale(1.1);
+}
+
+.novel-swatch-name {
+  font-size: 0.7rem;
+  opacity: 0.75;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+/* ---------- 状态提示 ---------- */
+.novel-empty,
+.novel-loading {
+  padding: 40px 16px;
+  text-align: center;
+  opacity: 0.6;
+  font-size: 1rem;
+}
+
+/* ---------- 顶栏按钮（ST 主界面） ---------- */
+/* 图标颜色跟随 ST 主题（与其它顶栏按钮一致），不再强制主题色 */
+
+/* 顶栏图标美化适配（与 CFM 同款机制）：
+   美化主题把邻居按钮图标替换成图片时，本插件按钮通过 JS 注入同类样式。
+   此处仅兜底：默认 FA 图标保持原样；自定义图标模式下隐藏 FA 字符。 */
+#novel-topbar-button .drawer-icon.novel-custom-icon {
+  font-size: 0; /* 隐藏 FA 字符，避免与背景图片叠加 */
+}
+
+#novel-topbar-button .drawer-icon.novel-custom-toggle-icon ~ .drawer-icon {
+  visibility: hidden; /* toggle 模式：隐藏原 FA 图标 */
+}
+
+/* ---------- 小说内检索结果面板 ---------- */
+.novel-search-panel {
+  position: absolute;
+  top: 56px;
+  right: 12px;
+  width: min(360px, 88vw);
+  max-height: calc(100% - 70px);
+  overflow-y: auto;
+  /* 跟随主题：以采样背景为主、略微叠加深色，保证对比 */
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #14161a));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+  z-index: 20;
+  padding: 6px;
+}
+
+.novel-search-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.novel-search-empty {
+  padding: 20px 12px;
+  text-align: center;
+  opacity: 0.55;
+  font-size: 0.9rem;
+}
+
+.novel-search-item {
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    transparent
+  );
+  border: 1px solid transparent;
+  transition:
+    background 0.12s ease,
+    border-color 0.12s ease;
+}
+
+.novel-search-item:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+  border-color: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 22%,
+    transparent
+  );
+}
+
+.novel-search-item-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.novel-search-item-ch {
+  font-weight: 600;
+  color: var(--SmartThemeMainColor, #4f8cff);
+  font-size: 0.85rem;
+}
+
+.novel-search-item-name {
+  margin-left: auto;
+  font-size: 0.8rem;
+  opacity: 0.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 40%;
+}
+
+.novel-search-item-snippet {
+  font-size: 0.82rem;
+  line-height: 1.5;
+  opacity: 0.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* 搜索结果定位高亮 */
+.novel-msg-highlight {
+  animation: novel-highlight-flash 2.5s ease;
+}
+
+@keyframes novel-highlight-flash {
+  0%,
+  60% {
+    background: rgba(255, 215, 0, 0.28);
+    border-radius: 8px;
+  }
+  100% {
+    background: transparent;
+  }
+}
+
+/* ============================================================
+   移动端媒体查询 —— 必须放文件末尾（铁律 2）
+   ============================================================ */
+@media (max-width: 900px) {
+  .novel-dialog {
+    width: 100vw;
+    height: 100vh; /* 铁律 4：vh 回退（旧浏览器） */
+    height: 100dvh; /* 动态视口：地址栏显隐时自适应，避免底部被遮挡 */
+    max-height: 100vh;
+    max-height: 100dvh;
+    border-radius: 0;
+    margin: auto; /* 铁律 3 */
+  }
+
+  .novel-topbar {
+    padding: 8px 12px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .novel-topbar-title {
+    font-size: 1rem;
+  }
+
+  .novel-page {
+    padding: 12px; /* 两侧留空隙：桌面 16px，移动端 12px */
+  }
+
+  .novel-grid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 10px;
+  }
+
+  .novel-char-card {
+    padding: 10px 8px 8px;
+    gap: 4px;
+  }
+
+  .novel-card-avatar {
+    width: 52px;
+    height: 52px;
+    border-width: 1.5px;
+  }
+
+  .novel-reader-scroll {
+    padding: 20px 14px 76px; /* 两侧留空隙 + 底部多留（底部栏高度） */
+  }
+
+  .novel-reader-inner {
+    max-width: 100%;
+  }
+
+  .novel-bottombar {
+    gap: 6px;
+    padding: 8px 10px;
+  }
+
+  .novel-bottombar .novel-btn {
+    padding: 8px 10px;
+    font-size: 0.85rem;
+  }
+
+  .novel-toc-bookmark-btn {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .novel-toc-bookmark-btn svg {
+    width: 13px;
+    height: 13px;
+  }
+
+  .novel-bookmark-list {
+    max-height: 55vh;
+  }
+
+  .novel-settings-panel {
+    width: 94vw;
+    max-height: 55vh;
+  }
+
+  /* 移动端：紧凑弹窗占满宽度，高度限 90vh，内容可滚动 */
+  .novel-dialog-compact {
+    width: 94vw;
+    max-height: 90vh;
+    margin: auto; /* 铁律 3 */
+  }
+
+  /* 移动端：弹窗头部紧凑化（标题 + 右上角关闭按钮） */
+  .novel-dialog-header {
+    padding: 10px 12px;
+    gap: 8px;
+  }
+
+  .novel-dialog-title {
+    font-size: 1rem;
+  }
+
+  .novel-dialog-close {
+    width: 26px;
+    height: 26px;
+    font-size: 16px;
+  }
+
+  /* 移动端：顶栏空间紧张，文件夹过滤按钮收缩 + 面板占宽 */
+  .novel-topbar-search {
+    min-width: 0;
+  }
+  .novel-cfm-folder-btn {
+    width: 28px;
+    height: 28px;
+    margin-left: 3px;
+  }
+  .novel-cfm-panel {
+    max-width: 78vw;
+    min-width: 180px;
+  }
+}
