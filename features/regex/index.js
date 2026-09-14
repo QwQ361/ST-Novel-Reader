@@ -215,6 +215,65 @@ export function createRegexCore(deps) {
   }
 
   /**
+   * 读用户手动排除的脚本 key 列表（用于「取消自动勾选」的全局正则）。
+   * 全局正则默认跟随酒馆勾选状态自动启用；用户手动取消后写入此列表，
+   * 之后即使酒馆中仍启用也保持取消（除非用户重新勾选）。
+   * @returns {string[]}
+   */
+  function getExcludedIds() {
+    const s = getSettings();
+    if (!s[extName]) s[extName] = {};
+    if (!Array.isArray(s[extName].regexExcludedIds)) s[extName].regexExcludedIds = [];
+    return s[extName].regexExcludedIds;
+  }
+
+  /**
+   * 判断某条正则是否有效启用（勾选状态）。
+   * 优先级：手动排除（用户取消自动勾选）> 手动勾选列表 > 全局正则酒馆启用（自动勾选）。
+   * @param {{script: object, source: string, key: string}} item getAllScripts 返回的元素
+   * @returns {boolean}
+   */
+  function isEnabled(item) {
+    if (!item || !item.key) return false;
+    if (getExcludedIds().includes(item.key)) return false;
+    const enabled = getEnabledIds();
+    if (enabled.includes(item.key) || enabled.includes(item.script?.id)) return true;
+    // 全局正则：酒馆正则面板中用户当前勾选（未禁用）的自动勾选
+    if (item.source === "global" && !item.script?.disabled) return true;
+    return false;
+  }
+
+  /**
+   * 设置某条正则的启用状态（统一处理手动勾选 + 自动勾选的排除标记）。
+   * @param {{script: object, source: string, key: string}} item
+   * @param {boolean} on
+   */
+  function setEnabledState(item, on) {
+    if (!item || !item.key) return;
+    const s = getSettings();
+    if (!s[extName]) s[extName] = {};
+    if (!Array.isArray(s[extName].regexEnabledIds)) s[extName].regexEnabledIds = [];
+    if (!Array.isArray(s[extName].regexExcludedIds)) s[extName].regexExcludedIds = [];
+    const enabled = s[extName].regexEnabledIds;
+    const excluded = s[extName].regexExcludedIds;
+    const ei = enabled.indexOf(item.key);
+    const xi = excluded.indexOf(item.key);
+    if (on) {
+      // 勾选：移除排除标记，并记录手动勾选
+      if (ei === -1) enabled.push(item.key);
+      if (xi !== -1) excluded.splice(xi, 1);
+    } else {
+      // 取消：移除手动勾选
+      if (ei !== -1) enabled.splice(ei, 1);
+      // 若该全局正则当前在酒馆中启用（会自动勾选），需记录排除以维持取消状态
+      if (item.source === "global" && !item.script?.disabled && xi === -1) {
+        excluded.push(item.key);
+      }
+    }
+    saveSettings?.();
+  }
+
+  /**
    * 获取所有可用正则脚本（全局 + 当前角色级 + 所有预设），标注来源。
    * @param {object} [options]
    * @param {string} [options.avatar] 当前角色头像名（用于取角色级正则）
@@ -296,14 +355,13 @@ export function createRegexCore(deps) {
   function runRegexOnText(text, options = {}) {
     if (typeof text !== "string" || !text) return text ?? "";
     const { avatar = "" } = options;
-    const enabled = new Set(getEnabledIds());
-    if (enabled.size === 0) return text;
 
     let out = text;
-    // 聚合所有来源：全局 + 当前角色级 + 所有预设（已勾选的跨预设累积）
+    // 聚合所有来源：全局 + 当前角色级 + 所有预设（已勾选的跨预设累积；
+    // 全局正则自动勾选酒馆中用户当前启用的脚本）
     const all = getAllScripts({ avatar });
     for (const item of all) {
-      if (!enabled.has(item.key) && !enabled.has(item.script.id)) continue;
+      if (!isEnabled(item)) continue;
       try {
         out = runRegexScript(item.script, out);
       } catch (err) {
@@ -313,14 +371,17 @@ export function createRegexCore(deps) {
     return out;
   }
 
-  /** 是否启用了任何正则 */
+  /** 是否启用了任何正则（含自动勾选的全局正则） */
   function hasEnabled() {
-    return getEnabledIds().length > 0;
+    return getAllScripts().some((item) => isEnabled(item));
   }
 
   return {
     getEnabledIds,
+    getExcludedIds,
     setEnabled,
+    setEnabledState,
+    isEnabled,
     getAllScripts,
     getAllPresets,
     getPresetScripts,

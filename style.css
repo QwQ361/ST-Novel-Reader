@@ -38,6 +38,12 @@
 }
 
 /* 紧凑弹窗（设置类小弹窗）：非全屏、居中、内容区可滚动 */
+/* 遮罩 z-index 需高于悬浮窗本体(.novel-dialog-floating, 100011)，
+   否则悬浮窗收窄/移动时会盖住设置弹窗边缘（如主题色板首尾项） */
+.novel-overlay-compact {
+  z-index: 100012;
+}
+
 .novel-dialog-compact {
   width: min(460px, 92vw);
   height: auto;
@@ -950,7 +956,11 @@
   bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
-  width: min(480px, 92vw);
+  /* 宽度按容器（阅读器本体）计算而非视口：
+     全屏模式容器即视口，min(480px,92vw) 等价；
+     悬浮窗收窄时 92vw 会按浏览器视口算，远超悬浮窗宽度被裁掉。
+     用 max(240px, 92%) 保证在窄容器里始终完整显示 */
+  width: max(240px, min(480px, 92%));
   max-height: 60vh;
   overflow-y: auto;
   padding: 14px 16px;
@@ -1263,6 +1273,171 @@
       var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
       transparent
     );
+}
+
+/* 正则区块标题行：标签靠左 + 全选按钮靠右 */
+.novel-regex-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+/* 全选/取消全选按钮 */
+.novel-regex-toggle-all {
+  flex: 0 0 auto;
+  font-size: 0.72rem;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 45%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 12%,
+    transparent
+  );
+  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  cursor: pointer;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.novel-regex-toggle-all:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 22%,
+    transparent
+  );
+  opacity: 0.9;
+}
+
+/* 已启用正则概览（位于全局正则上方，默认收起，点击分组标题展开） */
+.novel-regex-active-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 8px;
+  padding: 8px;
+  border-radius: 8px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+/* 概览区块顶部说明文字 */
+.novel-regex-summary-tip {
+  font-size: 0.72rem;
+  line-height: 1.4;
+  color: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 75%,
+    transparent
+  );
+  padding: 0 2px;
+}
+
+.novel-regex-group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.15s;
+}
+
+.novel-regex-group-head:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+}
+
+.novel-regex-group-arrow {
+  display: inline-block;
+  font-size: 0.7rem;
+  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  transition: transform 0.15s ease;
+  width: 1em;
+  text-align: center;
+}
+
+.novel-regex-group-open .novel-regex-group-arrow {
+  transform: rotate(90deg);
+}
+
+.novel-regex-group-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.novel-regex-group-count {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  line-height: 1;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+    transparent
+  );
+  opacity: 0.85;
+}
+
+/* 定位按钮：位于分组最右侧（计数徽标之后），点击跳转到对应位置 */
+.novel-regex-group-locate {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  font-size: 0.72rem;
+  cursor: pointer;
+  opacity: 0.6;
+  transition: opacity 0.15s, background 0.15s;
+}
+
+.novel-regex-group-locate:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+.novel-regex-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 4px;
+  margin-top: 2px;
 }
 
 .novel-regex-list {
@@ -1719,6 +1894,16 @@
   margin-top: 4px;
 }
 
+/* 悬浮窗收窄时：7 个主题项均分会被压到极小，首尾项（跟随酒馆/深蓝）名字截断甚至不可见。
+   悬浮窗内改为自动宽度换行（不再强行均分），每项按内容自适应，窄容器里自然折成两行 */
+.novel-dialog-floating .novel-swatches {
+  flex-wrap: wrap;
+}
+.novel-dialog-floating .novel-swatch-item {
+  flex: 0 1 auto;
+  min-width: 52px;
+}
+
 .novel-swatch-item {
   flex: 1 1 0;
   min-width: 0;
@@ -2036,5 +2221,165 @@
   .novel-cfm-panel {
     max-width: 78vw;
     min-width: 180px;
+  }
+}
+
+/* ============================================================
+   悬浮窗模式（阅读窗口模式 = 悬浮窗）
+   ============================================================ */
+/* 遮罩：半透明，保留背景可见，仍可点击遮罩关闭 */
+.novel-overlay-floating {
+  background: rgba(0, 0, 0, 0.45);
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+/* 置顶状态：遮罩透明 + 点击穿透（pointer-events:none），
+   可正常点击/使用悬浮窗之外的页面；悬浮窗本体重新启用交互 */
+.novel-overlay-floating.novel-overlay-pinned {
+  background: transparent;
+  pointer-events: none;
+}
+.novel-overlay-floating.novel-overlay-pinned .novel-dialog-floating {
+  pointer-events: auto;
+}
+
+/* 悬浮窗本体：固定定位（JS 用 left/top 定位），标题栏可拖动 */
+.novel-dialog-floating {
+  position: fixed;
+  width: 880px;
+  height: 620px;
+  min-width: 360px;
+  min-height: 240px;
+  max-width: 96vw;
+  max-height: 94vh;
+  border-radius: 14px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+      transparent
+    );
+  box-shadow: 0 12px 48px rgba(0, 0, 0, 0.55);
+  overflow: hidden;
+  z-index: 100011;
+}
+
+/* 标题栏拖动：仅悬浮窗 header 可拖动 */
+.novel-dialog-floating .novel-dialog-header {
+  cursor: move;
+  user-select: none;
+}
+
+/* 右下角缩放手柄 */
+.novel-dialog-resize-handle {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 22px;
+  height: 22px;
+  cursor: nwse-resize;
+  z-index: 5;
+  /* 视觉斜纹 */
+  background: linear-gradient(
+      135deg,
+      transparent 50%,
+      color-mix(
+        in srgb,
+        var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 45%,
+        transparent
+      ) 50%
+    );
+  background-size: 8px 8px;
+  border-bottom-right-radius: 12px;
+}
+
+/* 置顶按钮（仅悬浮窗）：激活态用强调色高亮 */
+.novel-pin-btn {
+  font-size: 0.9rem;
+}
+.novel-pin-btn svg {
+  width: 14px;
+  height: 14px;
+  display: block;
+}
+.novel-pin-btn.novel-pin-active {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 22%,
+    transparent
+  );
+  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+}
+/* 悬浮窗下 CFM 文件夹按钮移入 settings 区（与置顶/⚙/× 同排），
+   改用 icon-btn 尺寸，避免与绝对定位的按钮区重叠 */
+.novel-dialog-floating .novel-topbar-settings .novel-cfm-folder-btn {
+  width: auto;
+  height: auto;
+  margin-left: 0;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+  opacity: 1;
+}
+
+/* 悬浮窗收窄时：置顶/文件夹/⚙/× 按钮并入 flex 流，放在搜索框右侧。
+   顺序：返回 → 标题 → 搜索框 → 按钮区；标题/搜索框允许收缩，
+   按钮区 flex:0 0 auto 永远占据最右侧，任何长度标题都不会压住按钮。 */
+.novel-dialog-floating .novel-topbar-settings {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto; /* 不参与压缩，始终完整显示 */
+}
+.novel-dialog-floating .novel-topbar-search {
+  flex: 1 1 auto;
+  min-width: 0; /* 覆盖 120px，允许搜索框被压缩 */
+}
+.novel-dialog-floating .novel-topbar-title {
+  flex: 0 1 auto; /* 允许截断，不强制完整显示 */
+  min-width: 0; /* 允许收缩，避免长标题按 min-content 撑开布局 */
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.novel-dialog-floating .novel-topbar-back {
+  flex: 0 0 auto;
+}
+
+/* 移动端：悬浮窗保持小窗形态（不强制全屏，保留拖动/缩放与右下角手柄）。
+   顶栏完全复用 PC 悬浮窗布局（flex 流：标题/搜索框收缩 + 按钮区常驻右侧），
+   仅把 settings 区内 CFM 文件夹按钮压得更紧凑（窄容器按钮区空间有限） */
+@media (max-width: 900px) {
+  .novel-dialog-floating .novel-dialog-header {
+    cursor: default;
+  }
+  /* 移动端：标题优先占空间（flex:1 1 auto 与搜索框竞争），
+     并允许换行完整显示（white-space:normal 覆盖基线的 nowrap），
+     去掉省略号——标题永远完整，不出现多余的「…」 */
+  .novel-dialog-floating .novel-topbar-title {
+    flex: 1 1 auto;
+    white-space: normal;
+    overflow: visible;
+    text-overflow: clip;
+  }
+  .novel-dialog-floating .novel-topbar-search {
+    flex: 0 1 auto; /* 搜索框让位，仅占必要宽度 */
+    min-width: 64px;
+  }
+  .novel-dialog-floating .novel-topbar-settings .novel-cfm-folder-btn {
+    width: 28px;
+    height: 28px;
+    margin-left: 3px;
+    padding: 0;
   }
 }

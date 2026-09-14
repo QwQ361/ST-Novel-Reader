@@ -8,19 +8,29 @@
 // 因此从真实 DOM 采样 computed style，写入 CSS 变量 --novel-bg / --novel-fg，
 // style.css 各元素优先用这组变量（带 --SmartTheme* 回退）。
 
-/** 从元素及其祖先中取第一个非透明背景色（rgba 字符串） */
+/**
+ * 判断颜色是否完全不透明。
+ * - "#hex" / "rgb(...)" / 命名色 → 视为不透明
+ * - "rgba(...)" / "hsla(...)" → 解析 alpha，仅当 ≥0.999 视为不透明
+ * 半透明背景（如玻璃拟态主题）会被跳过，避免采样到半透明色导致悬浮窗窗口透底。
+ */
+function isOpaqueColor(c) {
+  if (!c || c === "transparent") return false;
+  if (c.startsWith("rgba") || c.startsWith("hsla")) {
+    const m = c.match(/[\d.]+\)\s*$/);
+    if (!m) return false;
+    return parseFloat(m[0]) >= 0.999;
+  }
+  return true;
+}
+
+/** 从元素及其祖先中取第一个完全不透明背景色（rgba 字符串） */
 function firstOpaqueBg(el) {
   let node = el;
   while (node && node !== document.documentElement) {
     try {
       const c = getComputedStyle(node).backgroundColor;
-      if (
-        c &&
-        c !== "transparent" &&
-        !c.startsWith("rgba(0, 0, 0, 0)")
-      ) {
-        return c;
-      }
+      if (isOpaqueColor(c)) return c;
     } catch (err) {
       // 忽略样式读取异常
     }
@@ -60,6 +70,26 @@ export function sampleStThemeCore() {
 
   if (!bg && !fg) return null;
   return { bg, fg };
+}
+
+/**
+ * 返回一个「保证不透明」的背景色：
+ * 优先用传入色，其次 ST 主题不透明变量，最后默认暗色。
+ * 用于悬浮窗/弹窗在跟随酒馆时避免透底（半透明背景会被跳过）。
+ * @param {string|undefined} sampledBg 采样到的背景色
+ * @returns {string}
+ */
+export function resolveOpaqueBg(sampledBg) {
+  if (isOpaqueColor(sampledBg)) return sampledBg;
+  try {
+    const st = getComputedStyle(document.body)
+      .getPropertyValue("--SmartThemeBlurTintColor")
+      .trim();
+    if (isOpaqueColor(st)) return st;
+  } catch (err) {
+    // 忽略样式读取异常
+  }
+  return "#14161a";
 }
 
 /**

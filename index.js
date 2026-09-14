@@ -37,7 +37,15 @@ import {
   isImageIconBackgroundCore,
   toCssUrlCore,
 } from "./integrations/topbar-icon.js";
-import { createOverlayDialog } from "./ui/modal/index.js";
+import {
+  createOverlayDialog,
+  makeDraggable,
+} from "./ui/modal/index.js";
+import {
+  applyThemeCore,
+  resolveOpaqueBg,
+  sampleStThemeCore,
+} from "./utils/theme.js";
 
 const EXT_NAME = "ST-Novel-Reader";
 
@@ -63,6 +71,10 @@ const READER_THEMES = [
 // 收藏图标（SVG，描边风格；激活态由 CSS 填充实心）
 const BOOKMARK_SVG =
   '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v16z"/></svg>';
+
+// 置顶图标（SVG，描边风格，与收藏一致；激活态由 CSS 高亮）
+const PIN_SVG =
+  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg>';
 
 jQuery(async () => {
   console.log("[NovelReader] 启动中…");
@@ -177,6 +189,12 @@ jQuery(async () => {
     if (g.readerSettings.textColor) delete g.readerSettings.textColor; // 旧字段（被主题取代）
     if (g.readerSettings.bgColor) delete g.readerSettings.bgColor; // 旧字段（被主题取代）
     if (!g.readerSettings.themeId) g.readerSettings.themeId = ""; // 阅读器主题（"" = 跟随酒馆）
+    // 阅读窗口模式："fullscreen" = 全屏（默认），"floating" = 可拖动/可缩放的悬浮窗
+    if (!g.windowMode) g.windowMode = "fullscreen";
+    // 悬浮窗上次的大小与位置 {w,h,x,y}（关闭→重开恢复）
+    if (g.floatingRect === undefined) g.floatingRect = null;
+    // 悬浮窗置顶状态：置顶后点击弹窗外不再自动关闭（仅悬浮窗模式生效）
+    if (g.floatingPinned === undefined) g.floatingPinned = false;
     if (!g.customTopbarIcon) g.customTopbarIcon = ""; // 自定义顶栏图标 URL（空 = 自动检测）
     if (g.showUserReplies === undefined) g.showUserReplies = true; // 是否显示 user 回复（默认显示）
     // 打开阅读器时显示哪个页面："last" = 上次关闭的页面（默认），"home" = 首页（书架）
@@ -231,8 +249,24 @@ jQuery(async () => {
   function openReaderDialog() {
     if (dialogRef) return;
 
-    const dlg = createOverlayDialog({ title: "", showClose: false });
+    const g0 = getGlobalSettings();
+    const dlg = createOverlayDialog({
+      title: "",
+      showClose: false,
+      floating: g0.windowMode === "floating",
+      // 悬浮窗：恢复上次大小/位置；拖动/缩放结束时持久化
+      floatingRect: g0.floatingRect,
+      onFloatingRect: (rect) => {
+        const g = getGlobalSettings();
+        g.floatingRect = rect;
+        deps.saveSettings();
+      },
+    });
     dialogRef = dlg;
+    // 悬浮窗置顶：置顶时点击遮罩不再自动关闭（仅悬浮窗模式有遮罩点击关闭）
+    if (g0.windowMode === "floating" && g0.floatingPinned) {
+      dlg.setPinned(true);
+    }
     dlg.onClose = () => {
       saveLastView(); // 记住关闭前的页面（角色/聊天/章节）
       charFolderPanel?.close(); // 关闭可能打开的角色文件夹过滤面板（独立挂 body）
@@ -252,7 +286,15 @@ jQuery(async () => {
         if (dialogRef !== dlg) return;
         const g2 = getGlobalSettings();
         if (!g2.readerSettings?.themeId) {
-          applyThemeCore(dlg.dialog, sampleStThemeCore());
+          // 与 applyReaderStyles 的 ∅ 分支保持一致：采样 + 悬浮窗不透明兜底
+          const sampled = sampleStThemeCore();
+          applyThemeCore(dlg.dialog, sampled);
+          if (dlg.dialog.classList.contains("novel-dialog-floating")) {
+            const sampledBg = sampled?.bg;
+            if (!sampledBg || /^rgba\(|^hsla\(/.test(sampledBg)) {
+              dlg.dialog.style.background = resolveOpaqueBg(sampledBg);
+            }
+          }
           themeTextBridge.refresh();
         }
       }, 300);
@@ -273,15 +315,35 @@ jQuery(async () => {
       <div class="novel-topbar-title">酒馆小说阅读器</div>
       <div class="novel-topbar-search">
         <input type="text" placeholder="搜索角色 / 聊天…" />
-        <button type="button" class="novel-cfm-folder-btn novel-cfm-char-filter" title="文件夹过滤" style="display:none">
-          <i class="fa-solid fa-folder-tree"></i>
-        </button>
+        ${
+          g0.windowMode === "floating"
+            ? ""
+            : '<button type="button" class="novel-cfm-folder-btn novel-cfm-char-filter" title="文件夹过滤" style="display:none"><i class="fa-solid fa-folder-tree"></i></button>'
+        }
       </div>
       <div class="novel-topbar-settings">
+        ${
+          g0.windowMode === "floating"
+            ? `
+        <button type="button" class="novel-cfm-folder-btn novel-cfm-char-filter" title="文件夹过滤" style="display:none"><i class="fa-solid fa-folder-tree"></i></button>
+        <button class="novel-icon-btn novel-pin-btn" data-action="pin" title="置顶：点击弹窗外不自动关闭">${PIN_SVG}</button>`
+            : ""
+        }
         <button class="novel-icon-btn" data-action="settings" title="全局设置">⚙</button>
         <button class="novel-icon-btn novel-icon-close" data-action="close" title="关闭">×</button>
       </div>`;
     content.appendChild(topbarEl);
+
+    // 置顶按钮：初始状态高亮（读取持久化置顶状态）
+    if (g0.windowMode === "floating" && g0.floatingPinned) {
+      topbarEl.querySelector('[data-action="pin"]')?.classList.add("novel-pin-active");
+    }
+
+    // 悬浮窗模式：顶部栏作为拖动柄（无 header；拖动时排除按钮/输入框等交互元素）
+    if (g0.windowMode === "floating") {
+      topbarEl.classList.add("novel-dialog-float-drag");
+      makeDraggable(dlg.dialog, topbarEl);
+    }
 
     // ---- 内容区（状态机切换） ----
     bodyEl = document.createElement("div");
@@ -833,8 +895,13 @@ jQuery(async () => {
       }, 400);
     });
 
-    // 点击正文（非交互元素）切换顶/底栏显隐
+    // 点击正文（非交互元素）切换顶/底栏显隐（悬浮窗模式禁用：顶栏即拖动柄，不可隐藏）
     scroll.addEventListener("click", (e) => {
+      if (
+        getGlobalSettings().windowMode === "floating"
+      ) {
+        return;
+      }
       if (
         e.target.closest(".novel-reader-inner") &&
         !e.target.closest("a,img,button,input,.novel-msg-name")
@@ -898,8 +965,13 @@ jQuery(async () => {
       }, 400);
     });
 
-    // 点击正文（非交互元素）切换顶/底栏显隐
+    // 点击正文（非交互元素）切换顶/底栏显隐（悬浮窗模式禁用：顶栏即拖动柄，不可隐藏）
     scroll.addEventListener("click", (e) => {
+      if (
+        getGlobalSettings().windowMode === "floating"
+      ) {
+        return;
+      }
       if (
         e.target.closest(".novel-reader-inner") &&
         !e.target.closest("a,img,button,input,.novel-msg-name")
@@ -1063,6 +1135,19 @@ jQuery(async () => {
       .addEventListener("click", () => {
         openGlobalSettings();
       });
+    // 置顶按钮（仅悬浮窗模式存在）：置顶后点击弹窗外不再自动关闭
+    topbarEl
+      .querySelector('[data-action="pin"]')
+      ?.addEventListener("click", () => {
+        const g = getGlobalSettings();
+        const pinned = !g.floatingPinned;
+        g.floatingPinned = pinned;
+        deps.saveSettings();
+        dialogRef?.setPinned(pinned);
+        topbarEl
+          .querySelector('[data-action="pin"]')
+          ?.classList.toggle("novel-pin-active", pinned);
+      });
     // 关闭按钮（×）：关闭阅读器，下次打开恢复原页面
     topbarEl
       .querySelector('[data-action="close"]')
@@ -1200,6 +1285,19 @@ jQuery(async () => {
       </div>
 
       <div class="novel-settings-row">
+        <div class="novel-settings-label">阅读窗口模式</div>
+        <select class="novel-window-mode-select">
+          <option value="fullscreen" ${
+            g.windowMode !== "floating" ? "selected" : ""
+          }>全屏</option>
+          <option value="floating" ${
+            g.windowMode === "floating" ? "selected" : ""
+          }>悬浮窗</option>
+        </select>
+        <div class="novel-settings-hint">全屏：阅读器占满整个屏幕；悬浮窗：小窗口显示，可拖动标题栏移动位置，拖动右下角调整大小。</div>
+      </div>
+
+      <div class="novel-settings-row">
         <div class="novel-settings-label">显示用户回复</div>
         <label class="novel-switch">
           <input type="checkbox" class="novel-show-user-input" ${
@@ -1295,13 +1393,20 @@ jQuery(async () => {
       </div>
 
       <div class="novel-settings-row novel-regex-section">
-        <div class="novel-settings-label">正则过滤</div>
-        <div class="novel-settings-hint">把酒馆正则应用到小说阅读：勾选后，正文渲染时会先按勾选的正则处理消息内容（隐藏 OOC 指令、去敏感词等）。全局正则始终可用；角色正则仅在该角色的聊天中生效。</div>
+        <div class="novel-regex-active-summary"></div>
+        <div class="novel-regex-label-row">
+          <div class="novel-settings-label">全局正则</div>
+          <button type="button" class="novel-regex-toggle-all" data-scope="base">全选</button>
+        </div>
+        <div class="novel-settings-hint">从酒馆中启用正则：全局正则自动跟随酒馆中你当前勾选的正则；角色正则仅在该角色的聊天中生效。勾选后，正文渲染时会先按勾选的正则处理消息内容（隐藏 OOC 指令、去敏感词等）。</div>
         <div class="novel-regex-list"></div>
       </div>
 
       <div class="novel-settings-row novel-regex-preset-section">
-        <div class="novel-settings-label">预设正则</div>
+        <div class="novel-regex-label-row">
+          <div class="novel-settings-label">预设正则</div>
+          <button type="button" class="novel-regex-toggle-all" data-scope="preset">全选</button>
+        </div>
         <div class="novel-settings-hint">从 API 预设中启用正则：先选择预设，再勾选其中的正则。切换查看其他预设时，已勾选的正则依然生效（跨预设累积）。</div>
         <div class="novel-regex-preset-search-row">
           <input
@@ -1345,6 +1450,13 @@ jQuery(async () => {
     const startPageInput = content.querySelector(".novel-start-page-select");
     startPageInput?.addEventListener("change", () => {
       g.startPage = startPageInput.value;
+      deps.saveSettings();
+    });
+
+    // ---- 阅读窗口模式：切换后保存设置（下次打开阅读器时生效） ----
+    const windowModeInput = content.querySelector(".novel-window-mode-select");
+    windowModeInput?.addEventListener("change", () => {
+      g.windowMode = windowModeInput.value;
       deps.saveSettings();
     });
 
@@ -1542,17 +1654,18 @@ jQuery(async () => {
 
     // ---- 正则过滤：列出酒馆正则（全局 + 当前角色级），勾选后应用到小说阅读 ----
     const regexListEl = content.querySelector(".novel-regex-list");
+    const regexActiveEl = content.querySelector(".novel-regex-active-summary");
+    const regexPresetSectionEl = content.querySelector(".novel-regex-preset-section");
     const avatarForRegex = state.currentChar?.avatar || "";
     // 全局/角色列表不包含预设正则（预设单独在下方子区块列出）
     const regexScripts = regexCore.getAllScripts({
       avatar: avatarForRegex,
       presetNames: [],
     });
-    const regexEnabled = new Set(regexCore.getEnabledIds());
 
     // 勾选变化后：持久化 + 若在阅读/目录页则立即重新渲染当前章
-    function applyRegexToggle(key, checked) {
-      regexCore.setEnabled(key, checked);
+    function applyRegexToggle(item, checked) {
+      regexCore.setEnabledState(item, checked);
       deps.saveSettings();
       if (state.page === "reader") {
         const ch = state.currentChapter;
@@ -1561,33 +1674,222 @@ jQuery(async () => {
         const container = bodyEl.querySelector(".novel-page");
         if (container) renderTocPage(container);
       }
+      // 同步下方列表 + 概览 + 当前预设列表的勾选状态
+      renderRegexBaseList();
+      renderRegexActiveSummary();
+      if (presetSelectEl) renderPresetRegexList(presetSelectEl.value);
+      updateToggleAllLabels();
     }
 
-    if (!regexScripts.length) {
-      const empty = document.createElement("div");
-      empty.className = "novel-regex-empty";
-      empty.textContent =
-        "没有可用的全局/角色正则。可先在下方选择 API 预设并勾选其中的预设正则。";
-      regexListEl.appendChild(empty);
-    } else {
+    // 全选/取消全选按钮文案刷新：根据当前区块勾选状态切换「全选/取消全选」
+    function updateToggleAllLabels() {
+      content
+        .querySelectorAll(".novel-regex-toggle-all")
+        .forEach((btn) => {
+          const scope = btn.dataset.scope;
+          let items = [];
+          if (scope === "base") {
+            items = regexScripts;
+          } else if (scope === "preset" && presetSelectEl) {
+            items = regexCore
+              .getAllScripts({ presetNames: [presetSelectEl.value] })
+              .filter((item) => item.source === "preset");
+          }
+          if (!items.length) {
+            btn.textContent = "全选";
+            return;
+          }
+          const allOn = items.every((item) => regexCore.isEnabled(item));
+          btn.textContent = allOn ? "取消全选" : "全选";
+        });
+    }
+
+    // 全选/取消全选：先统一勾选/取消当前区块全部正则，再同步渲染
+    function toggleAllRegex(scope) {
+      let items = [];
+      if (scope === "base") {
+        items = regexScripts;
+      } else if (scope === "preset" && presetSelectEl) {
+        items = regexCore
+          .getAllScripts({ presetNames: [presetSelectEl.value] })
+          .filter((item) => item.source === "preset");
+      }
+      if (!items.length) return;
+      const allOn = items.every((item) => regexCore.isEnabled(item));
+      items.forEach((item) => regexCore.setEnabledState(item, !allOn));
+      deps.saveSettings();
+      if (state.page === "reader") {
+        const ch = state.currentChapter;
+        if (ch) openChapter(ch);
+      } else if (state.page === "toc") {
+        const container = bodyEl.querySelector(".novel-page");
+        if (container) renderTocPage(container);
+      }
+      renderRegexBaseList();
+      renderRegexActiveSummary();
+      if (presetSelectEl) renderPresetRegexList(presetSelectEl.value);
+      updateToggleAllLabels();
+    }
+
+    /** 渲染一条正则勾选行（checkbox + 徽标 + 名称），change 时同步状态 */
+    function renderRegexItem(row, item, badgeText) {
+      const checked = regexCore.isEnabled(item);
+      row.innerHTML = `
+        <input type="checkbox" data-key="${escapeHtml(item.key)}" ${checked ? "checked" : ""} />
+        <span class="novel-regex-badge">${badgeText}</span>
+        <span class="novel-regex-name">${escapeHtml(
+          String(item.script.scriptName || item.script.id || "未命名"),
+        )}</span>`;
+      row.addEventListener("change", (e) =>
+        applyRegexToggle(item, e.target.checked),
+      );
+    }
+
+    /** 下方全局/角色正则列表 */
+    function renderRegexBaseList() {
+      regexListEl.innerHTML = "";
+      if (!regexScripts.length) {
+        const empty = document.createElement("div");
+        empty.className = "novel-regex-empty";
+        empty.textContent =
+          "没有可用的全局/角色正则。可先在下方选择 API 预设并勾选其中的预设正则。";
+        regexListEl.appendChild(empty);
+        return;
+      }
       regexScripts.forEach((item) => {
         const row = document.createElement("label");
         row.className = "novel-regex-item";
-        const checked =
-          regexEnabled.has(item.key) || regexEnabled.has(item.script.id);
-        const sourceLabel = item.source === "global" ? "全局" : "角色";
-        row.innerHTML = `
-          <input type="checkbox" data-key="${escapeHtml(item.key)}" ${checked ? "checked" : ""} />
-          <span class="novel-regex-badge">${sourceLabel}</span>
-          <span class="novel-regex-name">${escapeHtml(
-            String(item.script.scriptName || item.script.id || "未命名"),
-          )}</span>`;
-        row.addEventListener("change", (e) =>
-          applyRegexToggle(item.key, e.target.checked),
-        );
+        renderRegexItem(row, item, item.source === "global" ? "全局" : "角色");
         regexListEl.appendChild(row);
       });
     }
+
+    // 已启用正则概览（位于全局正则上方）：显示全局 + 用户已勾选的各预设，
+    // 默认收起，点击分组标题可展开查看并取消勾选
+    function renderRegexActiveSummary() {
+      regexActiveEl.innerHTML = "";
+      const allItems = regexCore.getAllScripts({ avatar: avatarForRegex });
+      const active = allItems.filter(
+        (item) => regexCore.isEnabled(item) && item.source !== "character",
+      );
+      if (!active.length) {
+        const empty = document.createElement("div");
+        empty.className = "novel-regex-empty";
+        empty.textContent =
+          "当前没有启用的正则。勾选下方或预设中的正则后，会显示在这里。";
+        regexActiveEl.appendChild(empty);
+        return;
+      }
+      const groups = [];
+      const globalItems = active.filter((item) => item.source === "global");
+      if (globalItems.length)
+        groups.push({ type: "global", name: "全局", items: globalItems });
+      const presetNames = [
+        ...new Set(
+          active.filter((i) => i.source === "preset").map((i) => i.presetName),
+        ),
+      ];
+      for (const pn of presetNames) {
+        const items = active.filter((i) => i.presetName === pn);
+        if (items.length)
+          groups.push({
+            type: "preset",
+            presetName: pn,
+            name: `预设 · ${pn}`,
+            items,
+          });
+      }
+      if (groups.length) {
+        const tip = document.createElement("div");
+        tip.className = "novel-regex-summary-tip";
+        tip.textContent =
+          "已勾选的正则：点击分组标题可展开查看，点击右侧定位按钮可快速跳转到对应位置。";
+        regexActiveEl.appendChild(tip);
+      }
+      groups.forEach((group) => {
+        const groupEl = document.createElement("div");
+        groupEl.className = "novel-regex-group";
+        const head = document.createElement("div");
+        head.className = "novel-regex-group-head";
+        head.innerHTML = `
+          <span class="novel-regex-group-arrow">▸</span>
+          <span class="novel-regex-group-name">${escapeHtml(group.name)}</span>
+          <span class="novel-regex-group-count">${group.items.length}</span>
+          <button class="novel-regex-group-locate" type="button" title="定位到对应位置">
+            <i class="fa-solid fa-location-crosshairs"></i>
+          </button>`;
+        const list = document.createElement("div");
+        list.className = "novel-regex-group-list";
+        list.style.display = "none"; // 默认收起
+        group.items.forEach((item) => {
+          const row = document.createElement("label");
+          row.className = "novel-regex-item";
+          renderRegexItem(row, item, item.source === "global" ? "全局" : "预设");
+          list.appendChild(row);
+        });
+        // 点击分组标题：仅展开/收起列表（跳转交给右侧定位按钮）
+        head.addEventListener("click", () => {
+          const expanded = list.style.display !== "none";
+          list.style.display = expanded ? "none" : "";
+          head.classList.toggle("novel-regex-group-open", !expanded);
+        });
+        // 定位按钮：跳转到对应位置
+        //  - 全局分组 → 滚动到下方全局/角色正则列表
+        //  - 预设分组 → 自动切换下拉框到该预设并渲染其正则列表，再滚动到预设区块
+        const locateBtn = head.querySelector(".novel-regex-group-locate");
+        locateBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (group.type === "preset" && presetSelectEl) {
+            // 若目标预设不在当前下拉选项（搜索/CFM 文件夹过滤排除了它），
+            // 先重置过滤条件再重新渲染选项，确保能切换到该预设
+            if (
+              ![...presetSelectEl.options].some(
+                (o) => o.value === group.presetName,
+              )
+            ) {
+              presetSearchEl.value = "";
+              if (
+                presetFolderFilter !== "__all__" &&
+                presetFolderBtn &&
+                cfmBridge.isCfmInstalled()
+              ) {
+                presetFolderFilter = "__all__";
+                presetFolderPanel?.setFilter("__all__");
+                presetFolderPanel?.close();
+              }
+              renderPresetOptions("");
+            }
+            presetSelectEl.value = group.presetName;
+            renderPresetRegexList(group.presetName);
+          }
+          const scrollTarget =
+            group.type === "global" ? regexListEl : regexPresetSectionEl;
+          if (scrollTarget) {
+            requestAnimationFrame(() => {
+              try {
+                scrollTarget.scrollIntoView({
+                  behavior: "smooth",
+                  block: "start",
+                });
+              } catch {
+                scrollTarget.scrollIntoView(true);
+              }
+            });
+          }
+        });
+        groupEl.appendChild(head);
+        groupEl.appendChild(list);
+        regexActiveEl.appendChild(groupEl);
+      });
+    }
+
+    renderRegexActiveSummary();
+    renderRegexBaseList();
+
+    // 全选按钮事件绑定（作用域：base = 全局/角色列表；preset = 当前选中预设）
+    content.querySelectorAll(".novel-regex-toggle-all").forEach((btn) => {
+      btn.addEventListener("click", () => toggleAllRegex(btn.dataset.scope));
+    });
 
     // ---- 预设正则：先选预设，再勾选该预设中的正则（跨预设累积生效） ----
     const presetSelectEl = content.querySelector(".novel-regex-preset-select");
@@ -1595,6 +1897,9 @@ jQuery(async () => {
     const presetSearchEl = content.querySelector(".novel-regex-preset-search");
     const presetFolderBtn = content.querySelector(".novel-cfm-preset-filter");
     const presetOptions = regexCore.getAllPresets();
+
+    // 初始刷新全选按钮文案（需在 presetSelectEl 声明之后调用，避免 TDZ）
+    updateToggleAllLabels();
 
     // CFM 预设文件夹过滤：仅同时安装 CFM 时显示；选中后仅展示该文件夹下的预设。
     // 面板控制器在下方 else 块内创建（需拿到 renderPresetOptions 供 onSelect 调用）。
@@ -1614,6 +1919,7 @@ jQuery(async () => {
           ? `没有匹配「${escapeHtml(kw)}」的预设。`
           : "请先在上方选择一个预设。";
         presetListEl.appendChild(empty);
+        updateToggleAllLabels();
         return;
       }
       const items = regexCore
@@ -1624,24 +1930,16 @@ jQuery(async () => {
         empty.className = "novel-regex-empty";
         empty.textContent = "该预设中没有正则脚本。";
         presetListEl.appendChild(empty);
+        updateToggleAllLabels();
         return;
       }
       items.forEach((item) => {
         const row = document.createElement("label");
         row.className = "novel-regex-item";
-        const checked =
-          regexEnabled.has(item.key) || regexEnabled.has(item.script.id);
-        row.innerHTML = `
-          <input type="checkbox" data-key="${escapeHtml(item.key)}" ${checked ? "checked" : ""} />
-          <span class="novel-regex-badge">预设</span>
-          <span class="novel-regex-name">${escapeHtml(
-            String(item.script.scriptName || item.script.id || "未命名"),
-          )}</span>`;
-        row.addEventListener("change", (e) =>
-          applyRegexToggle(item.key, e.target.checked),
-        );
+        renderRegexItem(row, item, "预设");
         presetListEl.appendChild(row);
       });
+      updateToggleAllLabels();
     }
 
     if (!presetOptions.length) {
@@ -1901,7 +2199,16 @@ jQuery(async () => {
       dialogEl.style.background = "";
       dialogEl.style.removeProperty("--novel-fg");
       try {
-        applyThemeCore(dialogEl, sampleStThemeCore());
+        const sampled = sampleStThemeCore();
+        applyThemeCore(dialogEl, sampled);
+        // 悬浮窗：美化主题为半透明/渐变/图片时采样不到不透明背景，
+        // 直接写死不透明兜底色避免窗口透底（全屏因遮罩+窗口双倍叠加不明显）
+        if (dialogEl.classList.contains("novel-dialog-floating")) {
+          const sampledBg = sampled?.bg;
+          if (!sampledBg || /^rgba\(|^hsla\(/.test(sampledBg)) {
+            dialogEl.style.background = resolveOpaqueBg(sampledBg);
+          }
+        }
       } catch (err) {
         // 采样失败则保持现状
       }
