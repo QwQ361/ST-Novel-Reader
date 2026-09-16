@@ -297,10 +297,11 @@ export function applyTopbarIconFromConfigCore(deps) {
  * @param {object} deps
  *   $, isImageIconBackground, detectNeighborIcon, applyCustomIcon, clearCustomIcon,
  *   applyTopbarIconFromConfig（可选，手动优先编排；缺省回退到纯自动检测）
- * @returns {{ start: Function, destroy: Function, detectAndApply: Function }}
+ * @returns {{ start: Function, destroy: Function, detectAndApply: Function, resetSignature: Function }}
  */
 export function createTopbarIconAdaptorCore(deps) {
   let lastNeighborBg = null;
+  let lastAppliedSig = null; // 上次应用的签名（手动 URL / 邻居背景），用于 2s 轮询去重
   let themeCheckTimer = null;
 
   /** 检测并应用（手动 URL 优先；无编排函数则纯自动） */
@@ -395,12 +396,14 @@ export function createTopbarIconAdaptorCore(deps) {
 
     // --- 策略3: 每 2s 轮询邻居按钮样式（兜底） ---
     detectAndApply();
+    // 初始化去重签名，避免首次轮询时重复应用（无变化时跳过 DOM 操作）
+    if (deps.applyTopbarIconFromConfig) {
+      lastAppliedSig = computeSignature(gDoc);
+    } else {
+      const initResult = deps.detectNeighborIcon();
+      lastNeighborBg = initResult ? initResult.cssUrl : null;
+    }
     themeCheckTimer = setIntervalFn(() => {
-      if (deps.applyTopbarIconFromConfig) {
-        // 手动优先编排：内部读取已保存 URL，非空则不覆盖用户选择
-        detectAndApply();
-        return;
-      }
       const neighborDrawerIcon = gDoc.querySelector(
         "#persona-management-button .drawer-icon",
       );
@@ -409,6 +412,16 @@ export function createTopbarIconAdaptorCore(deps) {
         neighborDrawerIcon.classList.contains("openIcon")
       ) {
         return; // 邻居面板打开中，跳过
+      }
+      if (deps.applyTopbarIconFromConfig) {
+        // 手动优先编排：内部读取已保存 URL，非空则不覆盖用户选择。
+        // 优化：每 2s 仅做轻量签名检测（读取手动 URL + 邻居 getComputedStyle），
+        // 签名无变化则跳过应用，避免原实现每 2s 无条件重复 DOM 操作。
+        const sig = computeSignature(gDoc);
+        if (sig === lastAppliedSig) return;
+        lastAppliedSig = sig;
+        detectAndApply();
+        return;
       }
       const result = deps.detectNeighborIcon();
       const currentBg = result ? result.cssUrl : null;
@@ -433,5 +446,21 @@ export function createTopbarIconAdaptorCore(deps) {
     }
   }
 
-  return { start, destroy, detectAndApply };
+  /** 计算应用签名：手动 URL 优先，否则邻居背景（用于 2s 轮询去重） */
+  function computeSignature(gDoc) {
+    const saved =
+      typeof deps.getSavedIcon === "function" ? deps.getSavedIcon() || "" : "";
+    if (saved) return `saved:${saved}`;
+    const result = deps.detectNeighborIcon();
+    const currentBg = result ? result.cssUrl : null;
+    return `bg:${currentBg || ""}`;
+  }
+
+  /** 重置签名：设置弹窗内手动修改图标配置后调用，使下次轮询重新应用最新配置 */
+  function resetSignature() {
+    lastAppliedSig = null;
+    lastNeighborBg = null;
+  }
+
+  return { start, destroy, detectAndApply, resetSignature };
 }

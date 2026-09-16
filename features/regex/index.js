@@ -41,6 +41,27 @@ export function regexFromString(input) {
   }
 }
 
+// ---- RegExp 编译缓存 ----
+// 同一 findRegex 字符串的编译结果确定且不可变，渲染热路径（每章上百条消息）
+// 会反复执行同一批正则脚本，这里按字符串缓存编译结果，避免每条消息重复编译。
+const regexCache = new Map();
+const REGEX_CACHE_MAX = 200;
+
+/**
+ * 取编译后的 RegExp（带缓存；结果确定，仅用于 String.replace，无 lastIndex 副作用）。
+ * @param {string} findRegex 原始 findRegex 字符串
+ * @returns {RegExp|null}
+ */
+function getCompiledRegex(findRegex) {
+  const key = String(findRegex ?? "");
+  if (regexCache.has(key)) return regexCache.get(key);
+  const re = regexFromString(key);
+  // 防无限增长：超出上限时清空（下次重新编译，量小可接受）
+  if (regexCache.size >= REGEX_CACHE_MAX) regexCache.clear();
+  regexCache.set(key, re);
+  return re;
+}
+
 /**
  * 对单个正则脚本执行替换（复刻 ST runRegexScript 核心，去除宏依赖）。
  * @param {object} script RegexScriptData 结构
@@ -58,7 +79,7 @@ export function runRegexScript(script, rawString) {
     return newString;
   }
 
-  const findRegex = regexFromString(String(script.findRegex));
+  const findRegex = getCompiledRegex(String(script.findRegex));
   if (!findRegex) return newString;
 
   const replaceString = String(script.replaceString ?? "").replace(
@@ -102,7 +123,8 @@ function applyTrimStrings(rawString, trimStrings) {
   let finalString = String(rawString ?? "");
   if (Array.isArray(trimStrings)) {
     for (const trimString of trimStrings) {
-      if (trimString) finalString = finalString.replaceAll(String(trimString), "");
+      if (trimString)
+        finalString = finalString.replaceAll(String(trimString), "");
     }
   }
   return finalString;
@@ -119,6 +141,15 @@ function applyTrimStrings(rawString, trimStrings) {
  */
 export function createRegexCore(deps) {
   const { getSettings, saveSettings, getStContext, extName } = deps;
+
+  // ---- 脚本列表缓存 ----
+  // getAllScripts（默认「全部预设」枚举）的结果按 avatar 维度缓存：
+  // 渲染热路径中每条消息都会调用 runRegexOnText → getAllScripts，
+  // 若不缓存，长聊天渲染会逐条消息重新枚举全部预设并读取各预设的正则脚本
+  // （readPresetExtensionField 可能触发预设文件读取），是明显的重复开销。
+  // 缓存 10s（预设/脚本变更后最迟 10s 反映；聊天切换时由 index.js 显式失效）。
+  const scriptListCache = new Map(); // avatar -> { ts, items }
+  const SCRIPT_LIST_TTL = 10_000;
 
   /**
    * 预设名转 key 段（预设名可能含冒号，替换为全角冒号避免 key 解析歧义）。
@@ -198,7 +229,8 @@ export function createRegexCore(deps) {
   function getEnabledIds() {
     const s = getSettings();
     if (!s[extName]) s[extName] = {};
-    if (!Array.isArray(s[extName].regexEnabledIds)) s[extName].regexEnabledIds = [];
+    if (!Array.isArray(s[extName].regexEnabledIds))
+      s[extName].regexEnabledIds = [];
     return s[extName].regexEnabledIds;
   }
 
@@ -206,7 +238,8 @@ export function createRegexCore(deps) {
   function setEnabled(id, on) {
     const s = getSettings();
     if (!s[extName]) s[extName] = {};
-    if (!Array.isArray(s[extName].regexEnabledIds)) s[extName].regexEnabledIds = [];
+    if (!Array.isArray(s[extName].regexEnabledIds))
+      s[extName].regexEnabledIds = [];
     const ids = s[extName].regexEnabledIds;
     const idx = ids.indexOf(id);
     if (on && idx === -1) ids.push(id);
@@ -223,7 +256,8 @@ export function createRegexCore(deps) {
   function getExcludedIds() {
     const s = getSettings();
     if (!s[extName]) s[extName] = {};
-    if (!Array.isArray(s[extName].regexExcludedIds)) s[extName].regexExcludedIds = [];
+    if (!Array.isArray(s[extName].regexExcludedIds))
+      s[extName].regexExcludedIds = [];
     return s[extName].regexExcludedIds;
   }
 
@@ -237,7 +271,8 @@ export function createRegexCore(deps) {
     if (!item || !item.key) return false;
     if (getExcludedIds().includes(item.key)) return false;
     const enabled = getEnabledIds();
-    if (enabled.includes(item.key) || enabled.includes(item.script?.id)) return true;
+    if (enabled.includes(item.key) || enabled.includes(item.script?.id))
+      return true;
     // 全局正则：酒馆正则面板中用户当前勾选（未禁用）的自动勾选
     if (item.source === "global" && !item.script?.disabled) return true;
     return false;
@@ -252,8 +287,10 @@ export function createRegexCore(deps) {
     if (!item || !item.key) return;
     const s = getSettings();
     if (!s[extName]) s[extName] = {};
-    if (!Array.isArray(s[extName].regexEnabledIds)) s[extName].regexEnabledIds = [];
-    if (!Array.isArray(s[extName].regexExcludedIds)) s[extName].regexExcludedIds = [];
+    if (!Array.isArray(s[extName].regexEnabledIds))
+      s[extName].regexEnabledIds = [];
+    if (!Array.isArray(s[extName].regexExcludedIds))
+      s[extName].regexExcludedIds = [];
     const enabled = s[extName].regexEnabledIds;
     const excluded = s[extName].regexExcludedIds;
     const ei = enabled.indexOf(item.key);
@@ -284,6 +321,12 @@ export function createRegexCore(deps) {
    */
   function getAllScripts(options = {}) {
     const { avatar = "", presetNames = null } = options;
+    // 渲染热路径缓存：默认（presetNames = null，即「全部预设」）枚举结果按 avatar 缓存。
+    // 显式指定 presetNames 的临时枚举（设置面板局部查询）不缓存。
+    if (presetNames == null) {
+      const hit = scriptListCache.get(avatar);
+      if (hit && Date.now() - hit.ts < SCRIPT_LIST_TTL) return hit.items;
+    }
     const results = [];
     const seen = new Set();
 
@@ -341,6 +384,11 @@ export function createRegexCore(deps) {
       scripts.forEach((s) => push(s, "preset", { presetName }));
     }
 
+    // 仅缓存默认枚举结果；防无限增长（角色/头像过多时直接清空，下次重新枚举）
+    if (presetNames == null) {
+      scriptListCache.set(avatar, { ts: Date.now(), items: results });
+      if (scriptListCache.size > 64) scriptListCache.clear();
+    }
     return results;
   }
 
@@ -356,16 +404,29 @@ export function createRegexCore(deps) {
     if (typeof text !== "string" || !text) return text ?? "";
     const { avatar = "" } = options;
 
-    let out = text;
     // 聚合所有来源：全局 + 当前角色级 + 所有预设（已勾选的跨预设累积；
-    // 全局正则自动勾选酒馆中用户当前启用的脚本）
+    // 全局正则自动勾选酒馆中用户当前启用的脚本）。
+    // 列表走缓存（10s），避免每条消息重复枚举预设。
     const all = getAllScripts({ avatar });
+
+    // 快速路径：一次性收集启用脚本，无启用时直接返回原文
+    // （避免逐条消息重复 getAllScripts + 逐个 isEnabled 判断）
+    const enabledItems = [];
     for (const item of all) {
-      if (!isEnabled(item)) continue;
+      if (isEnabled(item)) enabledItems.push(item);
+    }
+    if (!enabledItems.length) return text;
+
+    let out = text;
+    for (const item of enabledItems) {
       try {
         out = runRegexScript(item.script, out);
       } catch (err) {
-        console.warn("[NovelReader] 正则执行失败:", item.script.scriptName, err);
+        console.warn(
+          "[NovelReader] 正则执行失败:",
+          item.script.scriptName,
+          err,
+        );
       }
     }
     return out;
@@ -374,6 +435,11 @@ export function createRegexCore(deps) {
   /** 是否启用了任何正则（含自动勾选的全局正则） */
   function hasEnabled() {
     return getAllScripts().some((item) => isEnabled(item));
+  }
+
+  /** 失效脚本列表缓存（聊天切换 / 角色重命名 / 正则脚本变更后调用） */
+  function invalidateScriptCache() {
+    scriptListCache.clear();
   }
 
   return {
@@ -387,5 +453,6 @@ export function createRegexCore(deps) {
     getPresetScripts,
     runRegexOnText,
     hasEnabled,
+    invalidateScriptCache,
   };
 }

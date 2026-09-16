@@ -78,9 +78,7 @@ export function stripConflictingDeclsCore(cssText) {
     .map((d) => d.trim())
     .filter(
       (d) =>
-        d &&
-        !/^color\s*:/i.test(d) &&
-        !/^background(-color)?\s*:/i.test(d),
+        d && !/^color\s*:/i.test(d) && !/^background(-color)?\s*:/i.test(d),
     );
   // 与浏览器 cssText 输出一致：保留末尾分号
   return kept.length ? kept.join("; ") + ";" : "";
@@ -103,21 +101,21 @@ export function rewriteSelectorCore(selector) {
     .map((part) => {
       let s = part.trim();
       // 1) 完整上下文链 #chat .mes .mes_text（含 .mes__text / .mes-text 变体）
-      s = s.replace(
-        /#chat\s+\.mes[^\s,>+~]*\s+\.mes_text/g,
-        ".novel-msg-body",
-      );
-      s = s.replace(
-        /#chat\s+\.mes[^\s,>+~]*\s+\.mes-text/g,
-        ".novel-msg-body",
-      );
+      s = s.replace(/#chat\s+\.mes[^\s,>+~]*\s+\.mes_text/g, ".novel-msg-body");
+      s = s.replace(/#chat\s+\.mes[^\s,>+~]*\s+\.mes-text/g, ".novel-msg-body");
       // 2) 独立 .mes_text / .mes-text / .mes__text（词边界，避免 .mes_text_button 误伤）
-      s = s.replace(/\.mes_text(?![-\w])|\.mes-text(?![-\w])|\.mes__text(?![-\w])/g, ".novel-msg-body");
+      s = s.replace(
+        /\.mes_text(?![-\w])|\.mes-text(?![-\w])|\.mes__text(?![-\w])/g,
+        ".novel-msg-body",
+      );
       // 3) #chat .mes / #chat .mes_text 等（.mes 变体；此时 .mes_text 已替换，
       //    故处理 #chat 后紧跟任意 .mes 前缀的情况，但排除 .mes_swipe 等其它变体）
       s = s.replace(/#chat\s+\.mes(?!sage|_)/g, ".novel-msg-body");
       // 4) 单独 .mes（可能是 .mes p em 中的 .mes；排除 .message/.mes_text/.mes_swipe 误伤）
-      s = s.replace(/(^|[\s>+~])\.mes(?!sage|_)(?=[\s>+~.,:])/g, "$1.novel-msg-body");
+      s = s.replace(
+        /(^|[\s>+~])\.mes(?!sage|_)(?=[\s>+~.,:])/g,
+        "$1.novel-msg-body",
+      );
       // 5) 残留的聊天根前缀（body / #chat / .mes 容器）剥掉，让 .novel-msg-body 成为根
       s = s.replace(/^(?:body|html|#chat)\s+/i, "");
       // 6) 处理多个 .novel-msg-body 连续出现（去重，如 .novel-msg-body .novel-msg-body）
@@ -204,7 +202,29 @@ export function createThemeTextBridgeCore(deps) {
   const gDoc = deps.document || document;
   let observer = null;
   let timer = null;
+  let idleHandle = null;
   let enabled = true; // 桥接开关：选中内置主题时关闭（引号/星号改用主题自带变量）
+
+  /**
+   * 空闲调度：把扫描/注入放到浏览器空闲时段执行，避免样式表较大时阻塞主线程。
+   * 优先 requestIdleCallback（带 200ms 超时兜底），不可用时回退 setTimeout。
+   */
+  function scheduleIdle(fn, gWin) {
+    if (typeof gWin.requestIdleCallback === "function") {
+      idleHandle = gWin.requestIdleCallback(
+        () => {
+          idleHandle = null;
+          fn();
+        },
+        { timeout: 200 },
+      );
+    } else {
+      idleHandle = gWin.setTimeout(() => {
+        idleHandle = null;
+        fn();
+      }, 50);
+    }
+  }
 
   /** 刷新桥接样式（重新扫描 + 重建注入） */
   function refresh() {
@@ -239,11 +259,20 @@ export function createThemeTextBridgeCore(deps) {
       return;
     }
 
+    // 防抖 300ms 合并连续样式变更，随后交给空闲调度执行扫描（不阻塞主线程）
     const schedule = () => {
       if (timer) gWin.clearTimeout(timer);
       timer = gWin.setTimeout(() => {
         timer = null;
-        refresh();
+        if (idleHandle) {
+          if (typeof gWin.cancelIdleCallback === "function") {
+            gWin.cancelIdleCallback(idleHandle);
+          } else {
+            gWin.clearTimeout(idleHandle);
+          }
+          idleHandle = null;
+        }
+        scheduleIdle(() => refresh(), gWin);
       }, 300);
     };
 
@@ -292,6 +321,15 @@ export function createThemeTextBridgeCore(deps) {
     if (timer) {
       window.clearTimeout(timer);
       timer = null;
+    }
+    if (idleHandle) {
+      const gWin = window;
+      if (typeof gWin.cancelIdleCallback === "function") {
+        gWin.cancelIdleCallback(idleHandle);
+      } else {
+        gWin.clearTimeout(idleHandle);
+      }
+      idleHandle = null;
     }
   }
 

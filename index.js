@@ -37,10 +37,7 @@ import {
   isImageIconBackgroundCore,
   toCssUrlCore,
 } from "./integrations/topbar-icon.js";
-import {
-  createOverlayDialog,
-  makeDraggable,
-} from "./ui/modal/index.js";
+import { createOverlayDialog, makeDraggable } from "./ui/modal/index.js";
 import {
   applyThemeCore,
   resolveOpaqueBg,
@@ -240,6 +237,7 @@ jQuery(async () => {
     pendingHighlightOffset: null, // 待定位的消息章内偏移（搜索结果跳转）
   };
   let searchPanelEl = null; // 小说内检索结果面板
+  let topbarIconAdaptor = null; // 顶栏图标美化适配器（设置弹窗内改图标后重置轮询签名用）
 
   let saveTimer = 0;
 
@@ -336,7 +334,9 @@ jQuery(async () => {
 
     // 置顶按钮：初始状态高亮（读取持久化置顶状态）
     if (g0.windowMode === "floating" && g0.floatingPinned) {
-      topbarEl.querySelector('[data-action="pin"]')?.classList.add("novel-pin-active");
+      topbarEl
+        .querySelector('[data-action="pin"]')
+        ?.classList.add("novel-pin-active");
     }
 
     // 悬浮窗模式：顶部栏作为拖动柄（无 header；拖动时排除按钮/输入框等交互元素）
@@ -649,8 +649,11 @@ jQuery(async () => {
 
     const grid = document.createElement("div");
     grid.className = "novel-grid";
-    filtered.forEach((c, idx) => {
-      const origIdx = chars.indexOf(c);
+    // 预建 avatar 索引 Map：避免 filtered.forEach 内逐项 chars.indexOf（O(n²)）
+    const charIdxMap = new Map();
+    for (let i = 0; i < chars.length; i += 1) charIdxMap.set(chars[i], i);
+    filtered.forEach((c) => {
+      const origIdx = charIdxMap.get(c) ?? 0;
       const card = document.createElement("div");
       card.className = "novel-card novel-char-card";
       card.dataset.charIdx = String(origIdx);
@@ -735,7 +738,8 @@ jQuery(async () => {
       // 预览行：若最后一条消息是纯 ISO 时间戳（导入日志常见，如 2026-09-12T07:30:09.524Z），
       // 无阅读价值，跳过不显示
       const preview = String(chat.last_mes || "").trim();
-      const isIsoStamp = /^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:\d{2})?$/.test(preview);
+      const isIsoStamp =
+        /^\d{4}-\d{2}-\d{2}T[\d:.]+(?:Z|[+-]\d{2}:\d{2})?$/.test(preview);
       card.innerHTML = `
         <div class="novel-card-title">${escapeHtml(String(fileName).replace(/\.jsonl$/i, ""))}</div>
         ${preview && !isIsoStamp ? `<div class="novel-card-preview">${escapeHtml(preview)}</div>` : ""}
@@ -897,9 +901,7 @@ jQuery(async () => {
 
     // 点击正文（非交互元素）切换顶/底栏显隐（悬浮窗模式禁用：顶栏即拖动柄，不可隐藏）
     scroll.addEventListener("click", (e) => {
-      if (
-        getGlobalSettings().windowMode === "floating"
-      ) {
+      if (getGlobalSettings().windowMode === "floating") {
         return;
       }
       if (
@@ -967,9 +969,7 @@ jQuery(async () => {
 
     // 点击正文（非交互元素）切换顶/底栏显隐（悬浮窗模式禁用：顶栏即拖动柄，不可隐藏）
     scroll.addEventListener("click", (e) => {
-      if (
-        getGlobalSettings().windowMode === "floating"
-      ) {
+      if (getGlobalSettings().windowMode === "floating") {
         return;
       }
       if (
@@ -1021,7 +1021,11 @@ jQuery(async () => {
       const hasBm =
         state.currentChar &&
         state.currentChat &&
-        bookmarks.has(state.currentChar.avatar, state.currentChat.file_name, cur);
+        bookmarks.has(
+          state.currentChar.avatar,
+          state.currentChat.file_name,
+          cur,
+        );
       bmBtn.classList.toggle("novel-bookmark-active", !!hasBm);
       bmBtn.title = hasBm ? "取消收藏当前章节" : "收藏当前章节";
     }
@@ -1070,7 +1074,9 @@ jQuery(async () => {
     function renderItems() {
       const items = bookmarks.list(avatar, fileName);
       content.innerHTML = "";
-      const title = content.closest(".novel-dialog")?.querySelector(".novel-dialog-title");
+      const title = content
+        .closest(".novel-dialog")
+        ?.querySelector(".novel-dialog-title");
       if (title) title.textContent = `收藏章节（${items.length}）`;
 
       if (!items.length) {
@@ -1153,6 +1159,9 @@ jQuery(async () => {
       .querySelector('[data-action="close"]')
       .addEventListener("click", closeReaderDialog);
     // 搜索框：书架/聊天列表 = 实时筛选；目录/正文 = 小说内检索
+    // 小说内检索是全聊天遍历（所有章节 × 所有消息 × toLowerCase），
+    // 每次按键即时执行会明显卡顿，加 250ms 防抖合并连续输入。
+    let chatSearchTimer = 0;
     searchInputEl.addEventListener("input", () => {
       const q = searchInputEl.value.trim().toLowerCase();
       if (state.page === "bookshelf") {
@@ -1160,12 +1169,14 @@ jQuery(async () => {
       } else if (state.page === "chats") {
         renderChatListGrid(q);
       } else if (state.page === "toc" || state.page === "reader") {
-        runInChatSearch(q);
+        clearTimeout(chatSearchTimer);
+        chatSearchTimer = setTimeout(() => runInChatSearch(q), 250);
       }
     });
     // Esc 清空搜索并恢复
     searchInputEl.addEventListener("keydown", (e) => {
       if (e.key === "Escape") {
+        clearTimeout(chatSearchTimer); // 取消挂起的防抖搜索
         searchInputEl.value = "";
         if (state.page === "bookshelf") renderBookshelfGrid("");
         else if (state.page === "chats") renderChatListGrid("");
@@ -1466,10 +1477,7 @@ jQuery(async () => {
       g.showUserReplies = showUserInput.checked;
       deps.saveSettings();
       // 重新分章需要重新读取当前聊天（若正处于目录/正文页）
-      if (
-        state.page === "toc" ||
-        state.page === "reader"
-      ) {
+      if (state.page === "toc" || state.page === "reader") {
         const char = state.currentChar;
         const chat = state.currentChat;
         if (!char || !chat) return;
@@ -1592,6 +1600,8 @@ jQuery(async () => {
         clearCustomIcon: () => clearCustomIconCore({ $ }),
         toCssUrl: toCssUrlCore,
       });
+      // 手动改动图标配置后重置 2s 轮询签名，让轮询立即感知最新配置（避免去重跳过应用）
+      topbarIconAdaptor?.resetSignature();
     }
 
     // 下拉按钮：开合菜单
@@ -1655,7 +1665,9 @@ jQuery(async () => {
     // ---- 正则过滤：列出酒馆正则（全局 + 当前角色级），勾选后应用到小说阅读 ----
     const regexListEl = content.querySelector(".novel-regex-list");
     const regexActiveEl = content.querySelector(".novel-regex-active-summary");
-    const regexPresetSectionEl = content.querySelector(".novel-regex-preset-section");
+    const regexPresetSectionEl = content.querySelector(
+      ".novel-regex-preset-section",
+    );
     const avatarForRegex = state.currentChar?.avatar || "";
     // 全局/角色列表不包含预设正则（预设单独在下方子区块列出）
     const regexScripts = regexCore.getAllScripts({
@@ -1683,25 +1695,23 @@ jQuery(async () => {
 
     // 全选/取消全选按钮文案刷新：根据当前区块勾选状态切换「全选/取消全选」
     function updateToggleAllLabels() {
-      content
-        .querySelectorAll(".novel-regex-toggle-all")
-        .forEach((btn) => {
-          const scope = btn.dataset.scope;
-          let items = [];
-          if (scope === "base") {
-            items = regexScripts;
-          } else if (scope === "preset" && presetSelectEl) {
-            items = regexCore
-              .getAllScripts({ presetNames: [presetSelectEl.value] })
-              .filter((item) => item.source === "preset");
-          }
-          if (!items.length) {
-            btn.textContent = "全选";
-            return;
-          }
-          const allOn = items.every((item) => regexCore.isEnabled(item));
-          btn.textContent = allOn ? "取消全选" : "全选";
-        });
+      content.querySelectorAll(".novel-regex-toggle-all").forEach((btn) => {
+        const scope = btn.dataset.scope;
+        let items = [];
+        if (scope === "base") {
+          items = regexScripts;
+        } else if (scope === "preset" && presetSelectEl) {
+          items = regexCore
+            .getAllScripts({ presetNames: [presetSelectEl.value] })
+            .filter((item) => item.source === "preset");
+        }
+        if (!items.length) {
+          btn.textContent = "全选";
+          return;
+        }
+        const allOn = items.every((item) => regexCore.isEnabled(item));
+        btn.textContent = allOn ? "取消全选" : "全选";
+      });
     }
 
     // 全选/取消全选：先统一勾选/取消当前区块全部正则，再同步渲染
@@ -1824,7 +1834,11 @@ jQuery(async () => {
         group.items.forEach((item) => {
           const row = document.createElement("label");
           row.className = "novel-regex-item";
-          renderRegexItem(row, item, item.source === "global" ? "全局" : "预设");
+          renderRegexItem(
+            row,
+            item,
+            item.source === "global" ? "全局" : "预设",
+          );
           list.appendChild(row);
         });
         // 点击分组标题：仅展开/收起列表（跳转交给右侧定位按钮）
@@ -1959,10 +1973,7 @@ jQuery(async () => {
           (p) => !kw || p.name.toLowerCase().includes(kw),
         );
         // CFM 文件夹过滤：选中非「全部」时，仅保留属于该文件夹（含子文件夹）的预设
-        if (
-          presetFolderFilter !== "__all__" &&
-          cfmBridge.isCfmInstalled()
-        ) {
+        if (presetFolderFilter !== "__all__" && cfmBridge.isCfmInstalled()) {
           const allowed = cfmBridge.getItemsInFolder(
             "presets",
             presetFolderFilter,
@@ -2173,7 +2184,8 @@ jQuery(async () => {
     // 字号：只作用于正文容器
     if (readerScrollEl) {
       const inner = readerScrollEl.querySelector(".novel-reader-inner");
-      if (inner) inner.style.fontSize = `${rs.fontSize || getDefaultFontSize()}px`;
+      if (inner)
+        inner.style.fontSize = `${rs.fontSize || getDefaultFontSize()}px`;
     }
 
     const themeId = rs.themeId || "";
@@ -2225,14 +2237,16 @@ jQuery(async () => {
     const types = ctx.eventTypes;
     if (!events || !types) return;
 
-    // 聊天切换：清缓存（弹窗内按需刷新）
+    // 聊天切换：清缓存（弹窗内按需刷新）+ 正则脚本列表缓存失效
     events.on(types.CHAT_CHANGED, () => {
       setTimeout(() => bookshelf.clearCache(), 300);
+      regexCore.invalidateScriptCache();
     });
 
-    // 角色重命名：清缓存
+    // 角色重命名：清缓存 + 正则脚本列表缓存失效（avatar 键可能变化）
     events.on(types.CHARACTER_RENAMED, () => {
       setTimeout(() => bookshelf.clearCache(), 300);
+      regexCore.invalidateScriptCache();
     });
   }
 
@@ -2258,6 +2272,8 @@ jQuery(async () => {
       const adaptor = createTopbarIconAdaptorCore({
         $,
         isImageIconBackground: isImageIconBackgroundCore,
+        // 2s 轮询去重签名用：读取用户手动保存的图标 URL（无则空串 → 走邻居检测）
+        getSavedIcon: () => getGlobalSettings().customTopbarIcon,
         detectNeighborIcon: () =>
           detectNeighborIconCore({
             document,
@@ -2282,6 +2298,7 @@ jQuery(async () => {
             toCssUrl: toCssUrlCore,
           }),
       });
+      topbarIconAdaptor = adaptor;
       adaptor.start();
     } catch (err) {
       console.warn("[NovelReader] 顶栏图标适配初始化失败:", err);
