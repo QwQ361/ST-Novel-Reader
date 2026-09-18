@@ -936,11 +936,7 @@
 
 .novel-bookmark-del:hover {
   opacity: 1;
-  background: color-mix(
-    in srgb,
-    #e5484d 20%,
-    transparent
-  );
+  background: color-mix(in srgb, #e5484d 20%, transparent);
   color: #e5484d;
 }
 
@@ -1168,7 +1164,9 @@
   height: 18px;
   border-radius: 50%;
   background: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
-  transition: transform 0.2s, background 0.2s;
+  transition:
+    transform 0.2s,
+    background 0.2s;
 }
 
 .novel-switch input:checked + .novel-switch-track {
@@ -1303,7 +1301,9 @@
   );
   color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
   cursor: pointer;
-  transition: background 0.15s, opacity 0.15s;
+  transition:
+    background 0.15s,
+    opacity 0.15s;
 }
 
 .novel-regex-toggle-all:hover {
@@ -1420,7 +1420,9 @@
   font-size: 0.72rem;
   cursor: pointer;
   opacity: 0.6;
-  transition: opacity 0.15s, background 0.15s;
+  transition:
+    opacity 0.15s,
+    background 0.15s;
 }
 
 .novel-regex-group-locate:hover {
@@ -1638,7 +1640,10 @@
   font-size: 0.9rem;
   cursor: pointer;
   opacity: 0.75;
-  transition: opacity 0.2s, border-color 0.2s, color 0.2s;
+  transition:
+    opacity 0.2s,
+    border-color 0.2s,
+    color 0.2s;
   outline: none;
 }
 .novel-cfm-folder-btn:hover {
@@ -1980,6 +1985,15 @@
 
 /* ---------- 顶栏按钮（ST 主界面） ---------- */
 /* 图标颜色跟随 ST 主题（与其它顶栏按钮一致），不再强制主题色 */
+#novel-topbar-button {
+  display: flex;
+  align-items: center;
+}
+#novel-topbar-button .drawer-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
 
 /* 顶栏图标美化适配（与 CFM 同款机制）：
    美化主题把邻居按钮图标替换成图片时，本插件按钮通过 JS 注入同类样式。
@@ -1990,6 +2004,99 @@
 
 #novel-topbar-button .drawer-icon.novel-custom-toggle-icon ~ .drawer-icon {
   visibility: hidden; /* toggle 模式：隐藏原 FA 图标 */
+}
+
+/* ---------- 悬浮球按钮（body 末尾，position: fixed） ---------- */
+.novel-float-button {
+  position: fixed !important;
+  z-index: 1050;
+  cursor: grab;
+  width: 44px;
+  height: 44px;
+  background-color: var(--SmartThemeBlurTintColor, #007bff);
+  color: var(--SmartThemeBodyColor, #fff);
+  border: 1px solid var(--SmartThemeBorderColor, #555);
+  border-radius: 50%;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  user-select: none;
+  transition: box-shadow 0.2s;
+  touch-action: none; /* 移动端：拖拽时禁止浏览器默认触摸行为（配合 passive:false） */
+}
+.novel-float-button:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+.novel-float-button:active {
+  cursor: grabbing;
+}
+
+/* 长按准备拖拽的视觉反馈 */
+.novel-long-press-ready {
+  box-shadow: 0 0 0 3px rgba(137, 180, 250, 0.5) !important;
+}
+
+/* ---------- 魔法棒菜单按钮（#extensionsMenu 内） ---------- */
+#novel-wand-button {
+  cursor: pointer;
+}
+#novel-wand-button .extensionsMenuExtensionButton {
+  font-size: 0.95rem;
+}
+
+/* ---------- 按钮位置设置：三按钮切换组 ---------- */
+.novel-mode-section {
+  padding-bottom: 14px;
+  border-bottom: 1px solid
+    var(--SmartThemeBorderColor, rgba(255, 255, 255, 0.12));
+}
+.novel-mode-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.novel-mode-btn {
+  flex: 1;
+  padding: 8px 12px;
+  border-radius: 6px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    transparent
+  );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  cursor: pointer;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.15s;
+}
+.novel-mode-btn:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+.novel-mode-btn.novel-mode-active {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 22%,
+    transparent
+  );
+  border-color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  font-weight: 600;
 }
 
 /* ---------- 小说内检索结果面板 ---------- */
@@ -2222,6 +2329,13 @@
     max-width: 78vw;
     min-width: 180px;
   }
+
+  /* 移动端：模式切换按钮增大触控目标（≥48px，可访问性标准） */
+  .novel-mode-btn {
+    padding: 12px 14px;
+    font-size: 14px;
+    min-height: 48px;
+  }
 }
 
 /* ============================================================
@@ -2282,14 +2396,15 @@
   z-index: 5;
   /* 视觉斜纹 */
   background: linear-gradient(
-      135deg,
-      transparent 50%,
-      color-mix(
+    135deg,
+    transparent 50%,
+    color-mix(
         in srgb,
         var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 45%,
         transparent
-      ) 50%
-    );
+      )
+      50%
+  );
   background-size: 8px 8px;
   border-bottom-right-radius: 12px;
 }

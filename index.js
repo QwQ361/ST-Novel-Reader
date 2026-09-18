@@ -18,6 +18,13 @@ import { createProgressCore } from "./features/progress/index.js";
 import { createReaderCore } from "./features/reader/index.js";
 import { createRegexCore } from "./features/regex/index.js";
 import {
+  createFloatingButtonCore,
+  createTopbarButtonCore,
+  createWandButtonCore,
+  destroyAllButtonsCore,
+  switchButtonModeCore,
+} from "./integrations/button-position.js";
+import {
   getPastCharacterChatsFunc,
   getPresetManagerFunc,
   getRequestHeaders,
@@ -205,6 +212,8 @@ jQuery(async () => {
     if (!Array.isArray(g.chapterTitleFilters)) g.chapterTitleFilters = [];
     // 是否剥离识别标题开头的章号前缀（如「第一章：」；默认开启）
     if (g.stripChapterPrefix === undefined) g.stripChapterPrefix = true;
+    // 按钮位置："topbar" = 顶栏（默认），"float" = 悬浮球，"wand" = 魔法棒菜单
+    if (!g.buttonMode) g.buttonMode = "topbar";
     return g;
   }
 
@@ -1286,6 +1295,23 @@ jQuery(async () => {
       .join("");
 
     content.innerHTML = `
+      <div class="novel-settings-row novel-mode-section">
+        <div class="novel-settings-label">按钮位置</div>
+        <div class="novel-mode-toggle">
+          <button type="button" class="novel-mode-btn ${
+            g.buttonMode !== "float" && g.buttonMode !== "wand"
+              ? "novel-mode-active"
+              : ""
+          }" data-mode="topbar"><i class="fa-solid fa-bars"></i> 固定在顶栏</button>
+          <button type="button" class="novel-mode-btn ${
+            g.buttonMode === "float" ? "novel-mode-active" : ""
+          }" data-mode="float"><i class="fa-solid fa-up-down-left-right"></i> 浮动按钮</button>
+          <button type="button" class="novel-mode-btn ${
+            g.buttonMode === "wand" ? "novel-mode-active" : ""
+          }" data-mode="wand"><i class="fa-solid fa-magic-wand-sparkles"></i> 魔术棒菜单</button>
+        </div>
+      </div>
+
       <div class="novel-settings-row">
         <div class="novel-settings-label">目录每页章数</div>
         <input type="range" min="10" max="500" step="10" value="${Number(g.chaptersPerPage) || 100}" />
@@ -1433,6 +1459,24 @@ jQuery(async () => {
         <select class="novel-regex-preset-select"></select>
         <div class="novel-regex-preset-list"></div>
       </div>`;
+
+    // ---- 按钮位置：三按钮切换（立即生效 + 持久化） ----
+    const modeSection = content.querySelector(".novel-mode-section");
+    modeSection?.querySelectorAll(".novel-mode-btn").forEach((btnEl) => {
+      const onModeClick = (e) => {
+        e.preventDefault();
+        const newMode = btnEl.dataset.mode;
+        if (newMode === getButtonMode()) return;
+        switchButtonMode(newMode);
+        modeSection
+          .querySelectorAll(".novel-mode-btn")
+          .forEach((b) => b.classList.remove("novel-mode-active"));
+        btnEl.classList.add("novel-mode-active");
+      };
+      // 原生 API 需分别注册 click / touchend（jQuery 的 "click touchend" 字符串写法不适用）
+      btnEl.addEventListener("click", onModeClick);
+      btnEl.addEventListener("touchend", onModeClick);
+    });
 
     // ---- 目录每页章数 ----
     const range = content.querySelector("input[type='range']");
@@ -2250,24 +2294,11 @@ jQuery(async () => {
     });
   }
 
-  // ============ 顶栏按钮注入（ST 主界面） ============
+  // ============ 按钮注入（顶栏 / 悬浮球 / 魔法棒，按 buttonMode 切换） ============
 
-  function injectTopbarButton() {
-    const btn = document.createElement("div");
-    btn.id = "novel-topbar-button";
-    btn.className = "drawer";
-    btn.innerHTML = `
-      <div class="drawer-toggle drawer-header" title="酒馆小说阅读器">
-        <div class="drawer-icon closedIcon fa-solid fa-book interactable" title="酒馆小说阅读器" tabindex="0" role="button"></div>
-      </div>`;
-    btn.addEventListener("click", (e) => {
-      // 无论点击 icon 还是覆盖其上的 toggle（url 图标模式），都打开阅读器
-      if (e.target.closest("#novel-topbar-button")) openReaderDialog();
-    });
-    $("#rightNavHolder").before(btn);
-
-    // 顶栏图标美化适配：检测美化主题图标并自动保持一致（延迟等主题样式加载）
-    // 优先级：手动指定 URL > 自动检测邻居 > 默认 FA 图标
+  /** 顶栏图标美化适配：检测美化主题图标并自动保持一致（延迟等主题样式加载）
+   *  优先级：手动指定 URL > 自动检测邻居 > 默认 FA 图标。仅顶栏模式需要。 */
+  function startTopbarIconAdaptor() {
     try {
       const adaptor = createTopbarIconAdaptorCore({
         $,
@@ -2305,9 +2336,79 @@ jQuery(async () => {
     }
   }
 
+  // 按钮模式：读取保存值（默认 "topbar"）
+  function getButtonMode() {
+    return getGlobalSettings().buttonMode || "topbar";
+  }
+
+  // 按钮模式：持久化
+  function setButtonMode(mode) {
+    getGlobalSettings().buttonMode = mode;
+    deps.saveSettings();
+  }
+
+  // 创建顶栏按钮（含图标美化适配）
+  function createTopbarButton() {
+    createTopbarButtonCore({
+      $,
+      openReader: openReaderDialog,
+      setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+      onTopbarIconReady: startTopbarIconAdaptor,
+    });
+  }
+
+  // 创建悬浮球按钮
+  function createFloatingButton() {
+    createFloatingButtonCore({
+      $,
+      document,
+      window,
+      localStorage,
+      navigator,
+      storageKeyBtnPos: "novel-button-pos",
+      openReader: openReaderDialog,
+      setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+      clearTimeout: (id) => window.clearTimeout(id),
+    });
+  }
+
+  // 创建魔法棒按钮（#extensionsMenu 未就绪时内部延迟重试）
+  function createWandButton() {
+    createWandButtonCore({
+      $,
+      setTimeout: (fn, ms) => window.setTimeout(fn, ms),
+      openReader: openReaderDialog,
+      createWandButton,
+    });
+  }
+
+  // 销毁全部按钮
+  function destroyAllButtons() {
+    destroyAllButtonsCore({ $, document, window });
+  }
+
+  // 切换按钮模式：销毁旧按钮 → 持久化 → 按新模式创建
+  function switchButtonMode(newMode) {
+    switchButtonModeCore(newMode, {
+      destroyAllButtons,
+      setButtonMode,
+      createTopbarButton,
+      createFloatingButton,
+      createWandButton,
+    });
+  }
+
+  // 按保存的模式创建对应按钮
+  function initButton() {
+    const mode = getButtonMode();
+    if (mode === "topbar") createTopbarButton();
+    else if (mode === "wand") createWandButton();
+    else createFloatingButton();
+  }
+
   // ============ 启动 ============
 
-  injectTopbarButton();
+  initButton();
   subscribeEvents();
 
   // 启动主题文本样式桥接（美化主题引号/星号特效 → 阅读器正文）
@@ -2327,9 +2428,12 @@ jQuery(async () => {
     reader,
     progress,
     bookmarks,
+    // 按钮位置调试 API
+    getButtonMode,
+    switchButtonMode,
   };
 
-  console.log("[NovelReader] 已就绪，点击顶栏书图标打开。");
+  console.log("[NovelReader] 已就绪，点击书图标打开。");
 });
 
 // ============ 工具函数 ============
