@@ -95,7 +95,7 @@ export function createFloatingButtonCore(deps) {
   $("body").append(btn);
 
   // ---- 初始定位（恢复保存位置 + 边界校正；无保存 → 默认右上角） ----
-  const btnSize = 44;
+  const btnSize = 44; // 与 style.css .novel-float-button 尺寸保持一致
   const winW = $(deps.window).width();
   const winH = $(deps.window).height();
   let savedPos = null;
@@ -114,14 +114,32 @@ export function createFloatingButtonCore(deps) {
     if (posLeft < 0) posLeft = 10;
     if (posTop > winH - btnSize) posTop = winH - btnSize - 10;
     if (posTop < 0) posTop = 10;
+    // 避让消息操作按钮条（mes_buttons）常见区域（y≈150-210）：
+    // 旧版本默认位置 top:150px 在手机上正好与之重叠，用户会"找不到"悬浮球。
+    // 仅当保存位置落在此区间且靠右（right 侧）时，重置为新的默认位置。
+    const defaultTop = Math.round(winH * 0.3);
+    if (posTop >= 140 && posTop <= 220 && posLeft > winW * 0.5) {
+      posTop = defaultTop;
+      btn.css({ top: posTop + "px", right: "15px", left: "auto" });
+      savePos();
+    } else {
+      btn.css({
+        top: posTop + "px",
+        left: posLeft + "px",
+        right: "auto",
+        bottom: "auto",
+      });
+    }
+  } else {
+    // 默认右上角：top 用视口 30%（像素值），避开手机上消息操作按钮条
+    // （mes_buttons，y≈170-200）区域，避免用户"找不到"悬浮球
+    const defaultTop = Math.round(winH * 0.3);
     btn.css({
-      top: posTop + "px",
-      left: posLeft + "px",
-      right: "auto",
+      top: defaultTop + "px",
+      right: "15px",
+      left: "auto",
       bottom: "auto",
     });
-  } else {
-    btn.css({ top: "150px", right: "15px", left: "auto", bottom: "auto" });
   }
 
   // ---- 状态 ----

@@ -2009,12 +2009,14 @@
 /* ---------- 悬浮球按钮（body 末尾，position: fixed） ---------- */
 .novel-float-button {
   position: fixed !important;
-  z-index: 1050;
+  /* 高于酒馆顶栏(3005)与扩展菜单下拉(29999)，低于阅读器遮罩(100010)；
+     旧值 1050 会被顶栏/扩展菜单盖住，用户"找不到" */
+  z-index: 30000;
   cursor: grab;
   width: 44px;
   height: 44px;
   background-color: var(--SmartThemeBlurTintColor, #007bff);
-  color: var(--SmartThemeBodyColor, #fff);
+  color: var(--SmartThemeBodyColor, white);
   border: 1px solid var(--SmartThemeBorderColor, #555);
   border-radius: 50%;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.3);
