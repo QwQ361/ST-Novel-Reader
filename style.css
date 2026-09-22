@@ -915,7 +915,8 @@
    内置主题与酒馆美化桥接互斥：选内置主题时 theme-text.js 关闭桥接。 */
 
 .novel-dialog.novel-theme-warmpaper,
-.novel-overlay.novel-theme-warmpaper {
+.novel-overlay.novel-theme-warmpaper,
+body.novel-theme-warmpaper {
   --novel-bg: #f5f0e6;
   --novel-fg: #4a3f35;
   --novel-em-color: #a0522d;
@@ -928,7 +929,8 @@
 }
 
 .novel-dialog.novel-theme-midnight,
-.novel-overlay.novel-theme-midnight {
+.novel-overlay.novel-theme-midnight,
+body.novel-theme-midnight {
   --novel-bg: #14161a;
   --novel-fg: #d6d8dc;
   --novel-em-color: #7fd1c0;
@@ -941,7 +943,8 @@
 }
 
 .novel-dialog.novel-theme-tealink,
-.novel-overlay.novel-theme-tealink {
+.novel-overlay.novel-theme-tealink,
+body.novel-theme-tealink {
   --novel-bg: #0f1b1d;
   --novel-fg: #cfe3d8;
   --novel-em-color: #a8e6cf;
@@ -954,7 +957,8 @@
 }
 
 .novel-dialog.novel-theme-rose,
-.novel-overlay.novel-theme-rose {
+.novel-overlay.novel-theme-rose,
+body.novel-theme-rose {
   --novel-bg: #241a1e;
   --novel-fg: #e6d3d8;
   --novel-em-color: #f0a6b8;
@@ -967,7 +971,8 @@
 }
 
 .novel-dialog.novel-theme-forest,
-.novel-overlay.novel-theme-forest {
+.novel-overlay.novel-theme-forest,
+body.novel-theme-forest {
   --novel-bg: #141c15;
   --novel-fg: #d5e2d2;
   --novel-em-color: #a3d9a5;
@@ -980,7 +985,8 @@
 }
 
 .novel-dialog.novel-theme-ocean,
-.novel-overlay.novel-theme-ocean {
+.novel-overlay.novel-theme-ocean,
+body.novel-theme-ocean {
   --novel-bg: #101826;
   --novel-fg: #ccd9ea;
   --novel-em-color: #7fb5ff;
@@ -2918,6 +2924,8 @@
 }
 
 /* ---------- 输入框：指令库入口按钮 ---------- */
+/* 注意：该按钮位于 ST 聊天输入框工具行，属酒馆界面而非番外指令库面板，
+   故始终跟随酒馆主题（--SmartThemeBodyColor），不受阅读器内置主题 body class 影响 */
 .novel-side-story-lib-btn {
   display: inline-flex;
   align-items: center;
@@ -2926,7 +2934,7 @@
   height: 34px;
   border-radius: 8px;
   cursor: pointer;
-  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  color: var(--SmartThemeBodyColor, #ddd);
   opacity: 0.8;
   transition:
     background 0.15s ease,
@@ -2937,7 +2945,7 @@
   opacity: 1;
   background: color-mix(
     in srgb,
-    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    var(--SmartThemeBodyColor, #ddd) 12%,
     transparent
   );
 }
@@ -3352,7 +3360,11 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  background: rgba(0, 0, 0, 0.25);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
   border: 1px solid
     color-mix(
       in srgb,
@@ -3571,7 +3583,8 @@
 .novel-ss-tag-manage-add {
   flex: none;
   background: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
-  color: #11111b;
+  /* 文字用主题背景色：浅色主题(暖纸)→浅字配深 accent，深色主题→深字配亮 accent */
+  color: var(--novel-bg, #11111b);
   border: none;
   padding: 8px 14px;
   border-radius: 6px;
@@ -3955,7 +3968,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 6%,
+    transparent
+  );
   border: 1px solid
     color-mix(
       in srgb,
@@ -4061,7 +4078,11 @@
   gap: 2px;
   padding: 2px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
 }
 .novel-ss-import-sep-nav button {
   display: inline-flex;
@@ -4115,11 +4136,7 @@
   );
 }
 .novel-ss-import-sep-nav .novel-ss-import-sep-del:hover:not(:disabled) {
-  background: color-mix(
-    in srgb,
-    var(--novel-danger, #e5484d) 18%,
-    transparent
-  );
+  background: color-mix(in srgb, var(--novel-danger, #e5484d) 18%, transparent);
 }
 /* 解析预览区：弹性占满剩余空间，内部滚动 */
 .novel-ss-import-popup > .novel-ss-import-preview-field {
@@ -4143,7 +4160,11 @@
     );
   border-radius: 6px;
   padding: 6px;
-  background: rgba(0, 0, 0, 0.15);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    transparent
+  );
 }
 .novel-ss-import-preview-row {
   display: flex;
@@ -4176,7 +4197,11 @@
   margin-left: auto;
   padding: 2px;
   border-radius: 6px;
-  background: rgba(0, 0, 0, 0.35);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
 }
 .novel-ss-import-preview-nav-btn {
   display: inline-flex;
@@ -4239,7 +4264,11 @@
   white-space: pre-wrap;
   word-break: break-all;
   color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
-  background: rgba(0, 0, 0, 0.2);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 6%,
+    transparent
+  );
   border: 1px solid
     color-mix(
       in srgb,
@@ -4376,7 +4405,8 @@
   opacity: 0.9;
 }
 .novel-ss-batch-tag-arrow {
-  color: #a6adc8;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #a6adc8));
+  opacity: 0.55;
   font-size: 12px;
   flex-shrink: 0;
 }
@@ -4388,7 +4418,11 @@
   flex-wrap: wrap;
   gap: 3px;
   padding: 3px 8px;
-  background: rgba(0, 0, 0, 0.25);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
   border: 1px solid
     color-mix(
       in srgb,
@@ -4485,10 +4519,18 @@
 .novel-ss-batch-tag-opt-locked {
   opacity: 0.55;
   cursor: not-allowed;
-  background: rgba(0, 0, 0, 0.12);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 4%,
+    transparent
+  );
 }
 .novel-ss-batch-tag-opt-locked:hover {
-  background: rgba(0, 0, 0, 0.12);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 4%,
+    transparent
+  );
 }
 .novel-ss-batch-tag-opt-locked .novel-ss-batch-tag-opt-check,
 .novel-ss-batch-tag-opt-locked .novel-ss-tag-chip {
@@ -4615,7 +4657,11 @@
 }
 .novel-ss-edit-input {
   width: 100%;
-  background: rgba(0, 0, 0, 0.25);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
   border: 1px solid
     color-mix(
       in srgb,
@@ -4648,7 +4694,8 @@
 }
 .novel-ss-edit-popup-confirm {
   background: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
-  color: #11111b;
+  /* 文字用主题背景色：浅色主题(暖纸)→浅字配深 accent，深色主题→深字配亮 accent */
+  color: var(--novel-bg, #11111b);
   border: none;
   padding: 8px 18px;
   border-radius: 6px;
@@ -4730,14 +4777,19 @@
   font-size: 12px;
 }
 .novel-ss-rename-arrow {
-  color: #a6adc8;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #a6adc8));
+  opacity: 0.55;
   font-size: 12px;
   flex-shrink: 0;
 }
 .novel-ss-rename-new-input {
   flex: 1;
   min-width: 0;
-  background: rgba(0, 0, 0, 0.25);
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
   border: 1px solid
     color-mix(
       in srgb,

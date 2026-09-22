@@ -467,6 +467,9 @@ jQuery(async () => {
       saveLastView(); // 记住关闭前的页面（角色/聊天/章节）
       charFolderPanel?.close(); // 关闭可能打开的角色文件夹过滤面板（独立挂 body）
       reader.abort();
+      // 注意：不清理 body 上的主题 class —— 阅读器与番外指令库是两个独立弹窗，
+      // 用指令库须先关阅读器；body 主题 class 由持久化 themeId 独立维护（syncBodyThemeClass），
+      // 保证指令库在阅读器关闭后仍使用阅读器选定的内置主题配色。
       dialogRef = null;
     };
 
@@ -2822,6 +2825,23 @@ jQuery(async () => {
     settingsPanelEl = null;
   }
 
+  /** 同步 body 上的阅读器主题 class（供番外指令库面板/弹窗等挂 body 下的元素继承配色）。
+   *  阅读器与指令库是两个独立弹窗，用指令库须先关阅读器，故 body 主题不跟随阅读器开关，
+   *  而由持久化 readerSettings.themeId 独立维护：内置主题 → body 加 novel-theme-{id}，
+   *  ∅跟随酒馆 → 清空全部主题 class（指令库回退 ST 主题变量）。 */
+  function syncBodyThemeClass() {
+    const g = getGlobalSettings();
+    const themeId = g.readerSettings?.themeId || "";
+    const isBuiltin = READER_THEMES.some((t) => t.id && t.id === themeId);
+    READER_THEMES.forEach((t) => {
+      if (!t.id) return;
+      document.body.classList.toggle(
+        `novel-theme-${t.id}`,
+        isBuiltin && t.id === themeId,
+      );
+    });
+  }
+
   /** 应用阅读器界面样式：主题（∅跟随酒馆 / 内置主题）+ 字号 */
   function applyReaderStyles() {
     if (!dialogRef) return;
@@ -2849,12 +2869,17 @@ jQuery(async () => {
     if (isBuiltin) {
       dialogEl.classList.add(`novel-theme-${themeId}`);
       overlayEl?.classList.add(`novel-theme-${themeId}`);
+      // body 同步：番外指令库面板/弹窗（挂 document.body 下）通过继承
+      // --novel-bg/--novel-fg/--novel-accent 等变量获得与阅读器一致的配色
+      syncBodyThemeClass();
       // 清除采样内联变量（内置主题 class 自带 --novel-bg/--novel-fg 定义）
       dialogEl.style.removeProperty("--novel-bg");
       dialogEl.style.removeProperty("--novel-fg");
       // 关闭桥接：引号/星号不再跟随酒馆，改用主题自带特效变量
       themeTextBridge.setEnabled(false);
     } else {
+      // ∅ 跟随酒馆：body 清空主题 class（指令库回退 ST 主题变量）
+      syncBodyThemeClass();
       // ∅ 跟随酒馆：重新采样恢复主题色
       dialogEl.style.background = "";
       dialogEl.style.removeProperty("--novel-fg");
@@ -3123,6 +3148,10 @@ jQuery(async () => {
 
   initButton();
   subscribeEvents();
+
+  // 按持久化主题同步 body 主题 class：阅读器与指令库独立弹窗，
+  // 启动即应用（即使阅读器未打开，指令库也使用阅读器选定的内置主题配色）
+  syncBodyThemeClass();
 
   // 启动主题文本样式桥接（美化主题引号/星号特效 → 阅读器正文）
   try {

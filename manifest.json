@@ -6,6 +6,6 @@
   "js": "index.js",
   "css": "style.css",
   "author": "QwQ&AI",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "把聊天记录像小说一样随时查阅，支持跨角色、跨聊天浏览"
 }
