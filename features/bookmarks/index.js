@@ -105,5 +105,23 @@ export function createBookmarksCore(deps) {
     saveSettings();
   }
 
-  return { add, remove, list, has, clearByAvatar };
+  /** 清除某聊天的全部书签（删除聊天时同步清理） */
+  function clearByChat(avatar, fileName) {
+    const t = table();
+    delete t[`${avatar}::${fileName}`];
+    saveSettings();
+  }
+
+  /** 把某聊天的全部书签迁移到新文件名（重命名聊天时同步迁移 key） */
+  function renameKey(avatar, oldFileName, newFileName) {
+    const t = table();
+    const oldKey = `${avatar}::${oldFileName}`;
+    if (t[oldKey]) {
+      t[`${avatar}::${newFileName}`] = t[oldKey];
+      delete t[oldKey];
+      saveSettings();
+    }
+  }
+
+  return { add, remove, list, has, clearByAvatar, clearByChat, renameKey };
 }

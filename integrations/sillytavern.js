@@ -79,7 +79,9 @@ async function importChatsModule() {
 /** 导入 public/scripts/preset-manager.js 并缓存（getPresetManager 用于读取各预设的 regex_scripts） */
 async function importPresetManagerModule() {
   try {
-    _presetManagerModule = await import(/* @vite-ignore */ "../../../../preset-manager.js");
+    _presetManagerModule = await import(
+      /* @vite-ignore */ "../../../../preset-manager.js"
+    );
     return true;
   } catch (err) {
     console.warn("[NovelReader] 动态导入 preset-manager.js 失败:", err);
@@ -122,11 +124,67 @@ export function openCharacterChatFunc() {
 }
 
 /**
+ * 取「删除指定角色的聊天」函数（script.js 命名导出）。
+ * @returns {Function|null} deleteCharacterChatByName(characterId, fileName) => Promise
+ *   注意：characterId 为角色索引字符串，fileName 不含 .jsonl 扩展名
+ */
+export function deleteCharacterChatByNameFunc() {
+  return (
+    _scriptModule?.deleteCharacterChatByName ??
+    window.deleteCharacterChatByName ??
+    null
+  );
+}
+
+/**
+ * 取「重命名聊天」函数（script.js 命名导出）。
+ * @returns {Function|null} renameGroupOrCharacterChat({characterId, groupId, oldFileName, newFileName, loader}) => Promise
+ *   注意：old/newFileName 不含 .jsonl 扩展名
+ */
+export function renameGroupOrCharacterChatFunc() {
+  return (
+    _scriptModule?.renameGroupOrCharacterChat ??
+    window.renameGroupOrCharacterChat ??
+    null
+  );
+}
+
+/**
+ * 取「新建聊天」函数（script.js 命名导出）。
+ * @returns {Function|null} doNewChat({deleteCurrentChat}) => Promise
+ */
+export function doNewChatFunc() {
+  return _scriptModule?.doNewChat ?? window.doNewChat ?? null;
+}
+
+/**
  * 取「Markdown 消息渲染」函数（官方管线：showdown + sanitize）。
  * @returns {Function|null} messageFormatting(mes, ch_name, isSystem, isUser, messageId, sanitizerOverrides)
  */
 export function messageFormattingFunc() {
   return _scriptModule?.messageFormatting ?? window.messageFormatting ?? null;
+}
+
+/**
+ * 取「隐藏/恢复消息」函数（chats.js 命名导出；番外标注用）。
+ * @returns {Function|null} hideChatMessageRange(startIndex, endIndex, unhide)
+ *   将 chat 数组 [startIndex, endIndex] 区间的消息设为 is_system（从 AI 上下文排除），
+ *   unhide=true 时反向恢复。startIndex/endIndex 为 chat 数组索引（含端点）。
+ */
+export function hideChatMessageRangeFunc() {
+  return (
+    _chatsModule?.hideChatMessageRange ?? window.hideChatMessageRange ?? null
+  );
+}
+
+/**
+ * 取「保存聊天」函数（script.js 命名导出；番外标注后持久化隐藏与标记）。
+ * @returns {Function|null} saveChatConditional()
+ */
+export function saveChatConditionalFunc() {
+  return (
+    _scriptModule?.saveChatConditional ?? window.saveChatConditional ?? null
+  );
 }
 
 /**
@@ -138,8 +196,11 @@ export function messageFormattingFunc() {
 export function getPresetManagerFunc() {
   try {
     const ctx = getStContext();
-    if (typeof ctx?.getPresetManager === "function") return ctx.getPresetManager;
-    return _presetManagerModule?.getPresetManager ?? window.getPresetManager ?? null;
+    if (typeof ctx?.getPresetManager === "function")
+      return ctx.getPresetManager;
+    return (
+      _presetManagerModule?.getPresetManager ?? window.getPresetManager ?? null
+    );
   } catch (err) {
     console.warn("[NovelReader] getPresetManagerFunc 失败:", err);
     return null;

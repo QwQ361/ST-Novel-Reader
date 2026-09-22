@@ -40,7 +40,9 @@ export function createBookshelfCore(deps) {
       const list = chatCache.peek(avatar);
       if (Array.isArray(list)) {
         const found = list.find((c) => c.file_name === fileName);
-        return typeof found?.file_size === "number" ? found.file_size : undefined;
+        return typeof found?.file_size === "number"
+          ? found.file_size
+          : undefined;
       }
     } catch {
       // 忽略：拿不到 file_size 就不做失效判断
@@ -52,9 +54,35 @@ export function createBookshelfCore(deps) {
   // 解决长聊天文件每次进目录/正文都重新 POST /api/chats/get 的卡顿
   const contentCache = createChatContentCacheCore({
     ttl: 5 * 60_000,
-    fetcher: (avatar, fileName) =>
-      getChatMessagesCore(deps, avatar, fileName),
+    fetcher: (avatar, fileName) => getChatMessagesCore(deps, avatar, fileName),
   });
+
+  /**
+   * 失效某聊天的相关缓存（删除/重命名后同步）。
+   * 失效该聊天的完整内容缓存（单键），同时失效该角色的聊天列表缓存，
+   * 保证下次重绘时列表与内容都不会命中旧数据。
+   * @param {string} avatar 角色头像文件名
+   * @param {string} [fileName] 聊天文件名（带 .jsonl）；省略时清空该角色全部内容缓存
+   */
+  function invalidateChat(avatar, fileName) {
+    if (!avatar) return;
+    contentCache.invalidate(avatar, fileName);
+    chatCache.invalidate(avatar);
+  }
+
+  /**
+   * 失效并立即重新拉取某角色的聊天列表，并把新列表写回缓存。
+   * 删除/重命名聊天后调用：先失效再重拉，避免 UI 重绘时列表数据缺失/闪烁。
+   * @param {number|string} charIdx 角色索引
+   * @param {string} avatar 角色头像文件名
+   * @returns {Promise<Array>} 新的聊天列表（可能为空数组）
+   */
+  async function refreshCharChats(charIdx, avatar) {
+    chatCache.invalidate(avatar);
+    const list = await chatCache.get(avatar);
+    chatCache.setResolved(avatar, list);
+    return list;
+  }
 
   return {
     getCharacters: () => getCharactersCore(deps),
@@ -72,6 +100,8 @@ export function createBookshelfCore(deps) {
       return contentCache.get(avatar, fileName, undefined);
     },
     invalidate: (avatar) => chatCache.invalidate(avatar),
+    invalidateChat,
+    refreshCharChats,
     clearCache: () => {
       chatCache.clear();
       contentCache.clear();

@@ -69,7 +69,23 @@ export function createChatCacheCore(deps) {
     store.clear();
   }
 
-  return { get, peek, invalidate, clear };
+  /**
+   * 把已解析的聊天列表直接写入缓存（供 peek 同步读取）。
+   * 用于「删除/重命名聊天」后：invalidate 之后立即重拉列表，
+   * 把新列表 setResolved 回缓存，避免 UI 重绘时数据缺失/闪烁。
+   * @param {string} avatar 角色头像文件名
+   * @param {Array} list 已解析的聊天数组
+   */
+  function setResolved(avatar, list) {
+    if (!avatar) return;
+    store.set(avatar, {
+      promise: Promise.resolve(list),
+      value: list,
+      ts: Date.now(),
+    });
+  }
+
+  return { get, peek, invalidate, clear, setResolved };
 }
 
 /**

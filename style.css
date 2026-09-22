@@ -61,6 +61,90 @@
   gap: 14px;
 }
 
+/* ---------- 通用按钮基础（弹窗/确认框等非底栏场景共用） ---------- */
+/* 底栏 .novel-bottombar .novel-btn 选择器更具体，会覆盖本基础样式 */
+.novel-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+      transparent
+    );
+  font-size: 0.9rem;
+  line-height: 1;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.novel-btn:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+    transparent
+  );
+}
+
+/* 确认弹窗文案 */
+.novel-dialog-message {
+  font-size: 0.92rem;
+  line-height: 1.6;
+  opacity: 0.9;
+  word-break: break-all;
+}
+
+/* 弹窗底部操作按钮行 */
+.novel-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+/* 重命名输入框 */
+.novel-rename-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 6%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 22%,
+      transparent
+    );
+  outline: none;
+  box-sizing: border-box;
+}
+
+.novel-rename-input:focus {
+  border-color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  box-shadow: 0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--SmartThemeMainColor, #4f8cff)) 25%,
+      transparent
+    );
+}
+
 /* ---------- 弹窗头部：标题靠左、关闭按钮靠右（右上角） ---------- */
 .novel-dialog-header {
   flex: 0 0 auto;
@@ -337,6 +421,11 @@
   text-overflow: ellipsis;
 }
 
+/* 聊天卡片：flex 纵向布局，标题区撑满剩余高度，底部操作条统一对齐 */
+.novel-chat-card {
+  display: flex;
+  flex-direction: column;
+}
 /* 聊天卡片：标题允许换行，避免长名字被截成省略号 */
 .novel-chat-card .novel-card-title {
   white-space: normal;
@@ -344,6 +433,8 @@
   text-overflow: clip;
   word-break: break-all;
   line-height: 1.35;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .novel-card-preview {
@@ -360,6 +451,72 @@
   font-size: 0.75rem;
   opacity: 0.6;
   margin-top: 6px;
+}
+
+/* 聊天卡片底部操作条：始终常显（非 hover），SVG 图标按钮 */
+.novel-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+.novel-card-action {
+  flex: 1 1 0;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+      transparent
+    );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  /* 重置 button 默认样式：继承字体、无内边距 */
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0 6px;
+  line-height: 1;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+.novel-card-action:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+    transparent
+  );
+}
+
+.novel-card-action svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  stroke-width: 2;
+  margin-top: 1px;
+}
+
+/* 危险操作（删除）：hover 红色强调 */
+.novel-card-action-delete:hover {
+  background: color-mix(in srgb, #e5484d 18%, transparent);
+  border-color: #e5484d;
+  color: #e5484d;
 }
 
 /* ---------- 目录页 ---------- */
@@ -428,6 +585,64 @@
   flex: 0 0 auto;
   stroke-width: 2;
   margin-top: 1px;
+}
+
+/* 目录头删除/重命名操作组：紧邻收藏按钮右侧（收藏按钮已占 margin-left:auto） */
+.novel-toc-chat-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.novel-toc-action {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  cursor: pointer;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+      transparent
+    );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  /* 重置 button 默认样式：继承字体、无内边距 */
+  font: inherit;
+  padding: 0;
+  line-height: 1;
+  user-select: none;
+  transition: background 0.15s ease;
+}
+
+.novel-toc-action:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+    transparent
+  );
+}
+
+.novel-toc-action svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  stroke-width: 2;
+  margin-top: 1px;
+}
+
+.novel-toc-action-delete:hover {
+  background: color-mix(in srgb, #e5484d 18%, transparent);
+  border-color: #e5484d;
+  color: #e5484d;
 }
 
 .novel-toc-list {
@@ -540,6 +755,69 @@
       var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
       transparent
     );
+  /* 允许按钮行（操作组）跟随换行，不挤压章节标题 */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+/* 阅读页「第N章」旁的操作组：尺寸小于章标题（小图标按钮） */
+.novel-chapter-chat-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.novel-chapter-action {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  cursor: pointer;
+  background: transparent;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+      transparent
+    );
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  /* 重置 button 默认样式：继承字体、无内边距 */
+  font: inherit;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.6;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.novel-chapter-action:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 16%,
+    transparent
+  );
+}
+
+.novel-chapter-action svg {
+  display: block;
+  width: 12px;
+  height: 12px;
+  flex: 0 0 auto;
+  stroke-width: 2;
+  margin-top: 1px;
+}
+
+.novel-chapter-action-delete:hover {
+  background: color-mix(in srgb, #e5484d 18%, transparent);
+  border-color: #e5484d;
+  color: #e5484d;
 }
 
 /* ---------- 小说消息 ---------- */
@@ -1001,6 +1279,27 @@
   font-size: 0.78rem;
   opacity: 0.55;
   line-height: 1.5;
+}
+
+/* 删除与重命名按钮：目录页/阅读页复选框行 */
+.novel-chat-actions-checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.novel-chat-actions-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.novel-chat-actions-checkbox input[type="checkbox"] {
+  accent-color: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  cursor: pointer;
 }
 
 /* 自动识别标题：识别标签输入行 */
@@ -2286,6 +2585,27 @@
     height: 13px;
   }
 
+  /* 移动端：目录头操作组按钮紧凑化，避免与收藏按钮挤在一行 */
+  .novel-toc-chat-actions {
+    gap: 4px;
+  }
+
+  .novel-toc-action {
+    width: 28px;
+    height: 28px;
+  }
+
+  /* 移动端：阅读页操作组按钮更小 */
+  .novel-chapter-action {
+    width: 22px;
+    height: 22px;
+  }
+
+  .novel-chapter-action svg {
+    width: 11px;
+    height: 11px;
+  }
+
   .novel-bookmark-list {
     max-height: 55vh;
   }
@@ -2498,5 +2818,2031 @@
     height: 28px;
     margin-left: 3px;
     padding: 0;
+  }
+}
+
+/* ============================================================
+   番外功能（标注 + 指令库）
+   ============================================================ */
+
+/* ---------- 设置页：番外功能区块 ---------- */
+.novel-side-story-section {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+.novel-side-story-sub {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 5%,
+    transparent
+  );
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.novel-side-story-sub-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.novel-side-story-sub-row .novel-settings-label {
+  flex: 1 1 auto;
+}
+
+/* ---------- 目录：番外过滤按钮 ---------- */
+.novel-toc-filter {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  flex: none;
+}
+
+/* 当目录头同时存在书签按钮（margin-left:auto 推右）时，过滤按钮让位给它 */
+.novel-toc-filter + .novel-toc-bookmark-btn {
+  margin-left: 0;
+}
+
+.novel-toc-filter-btn {
+  font-size: 0.78rem;
+  line-height: 1;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 25%,
+      transparent
+    );
+  background: transparent;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  cursor: pointer;
+  opacity: 0.75;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.novel-toc-filter-btn:hover {
+  opacity: 1;
+}
+
+.novel-toc-filter-btn.novel-toc-filter-active {
+  background: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  border-color: transparent;
+  color: #fff;
+  opacity: 1;
+}
+
+/* ---------- 目录：番外条目（样式与普通章节一致，不区分配色） ---------- */
+
+/* ---------- 楼层：番外标注按钮（.mes_button 样式跟随 ST） ---------- */
+.novel-side-story-btn {
+  position: relative;
+}
+
+.novel-side-story-btn.novel-side-story-active {
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+/* ---------- 输入框：指令库入口按钮 ---------- */
+.novel-side-story-lib-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  cursor: pointer;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  opacity: 0.8;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.novel-side-story-lib-btn:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+/* ---------- 番外指令库浮动面板 ---------- */
+.novel-ss-panel {
+  position: fixed;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #1a1d23));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+  font-size: 0.9rem;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+}
+
+.novel-ss-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+.novel-ss-toolbar-title {
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.novel-ss-toolbar-actions {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.novel-ss-toolbar-actions i {
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 4px;
+  border-radius: 6px;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.novel-ss-toolbar-actions i:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+.novel-ss-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+}
+
+.novel-ss-search-row i {
+  opacity: 0.6;
+}
+
+/* 搜索框与放大镜图标同行，占满第一行剩余宽度 */
+.novel-ss-search {
+  flex: 1 1 auto;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.9rem;
+}
+
+/* 单列：指令列表区直接撑满面板剩余空间（内部滚动） */
+.novel-ss-list {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  padding: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* 列表区上方工具栏（标题 + 导入/新建/批量操作入口） */
+.novel-ss-list-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+  flex-wrap: wrap;
+}
+
+.novel-ss-list-title-label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  opacity: 0.75;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.novel-ss-list-actions {
+  display: inline-flex;
+  gap: 8px;
+  flex: none;
+}
+
+.novel-ss-list-actions i {
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 4px;
+  border-radius: 6px;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.novel-ss-list-actions i:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+.novel-ss-cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+}
+
+.novel-ss-cmd-row:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+}
+
+.novel-ss-cmd-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.novel-ss-cmd-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: break-all;
+  font-weight: 600;
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+.novel-ss-cmd-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  word-break: break-all;
+}
+
+.novel-ss-cmd-meta {
+  display: flex;
+  gap: 8px;
+  font-size: 0.75rem;
+  opacity: 0.6;
+  min-width: 0;
+}
+
+.novel-ss-cmd-meta .novel-ss-cmd-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.novel-ss-cmd-actions {
+  display: inline-flex;
+  gap: 6px;
+  flex: none;
+}
+
+.novel-ss-cmd-actions i {
+  font-size: 0.8rem;
+  padding: 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.novel-ss-cmd-actions i:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+.novel-ss-empty {
+  padding: 24px 12px;
+  text-align: center;
+  opacity: 0.5;
+  font-size: 0.85rem;
+}
+
+/* 批量操作工具栏（右栏指令列表上方，batchMode 时显示） */
+.novel-ss-batch-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+  flex-wrap: wrap;
+}
+
+.novel-ss-batch-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  border-radius: 5px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+      transparent
+    );
+  background: transparent;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  cursor: pointer;
+  opacity: 0.8;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.novel-ss-batch-btn:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+
+.novel-ss-batch-btn.novel-ss-batch-active {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 22%,
+    transparent
+  );
+  border-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+.novel-ss-batch-count {
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+/* 批量模式下指令行的复选框 */
+.novel-ss-cmd-check {
+  flex: none;
+  cursor: pointer;
+  opacity: 0.75;
+}
+
+.novel-ss-cmd-check:hover {
+  opacity: 1;
+}
+
+/* 批量模式下选中行高亮 */
+.novel-ss-cmd-row.novel-ss-cmd-selected {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 18%,
+    transparent
+  );
+}
+
+.novel-ss-cmd-row.novel-ss-cmd-selected .novel-ss-cmd-check {
+  opacity: 1;
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+/* ---------- 指令行收藏星标 ---------- */
+.novel-ss-cmd-star {
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  transition:
+    transform 0.15s ease,
+    color 0.15s ease;
+}
+
+.novel-ss-cmd-star:hover {
+  transform: scale(1.25);
+  color: #f6c453;
+}
+
+.novel-ss-cmd-star-on {
+  color: #f6c453;
+  opacity: 1;
+}
+
+/* ---------- 指令行 tag 胶囊区 ---------- */
+.novel-ss-cmd-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* tag 胶囊（指令行 / tag 管理弹窗 / 指令 tag 弹窗 / 批量 tag 弹窗共用） */
+.novel-ss-tag-chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 16%,
+    transparent
+  );
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 30%,
+      transparent
+    );
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    opacity 0.12s ease;
+}
+
+.novel-ss-tag-chip:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 30%,
+    transparent
+  );
+  opacity: 1;
+}
+
+/* ---------- 搜索栏：tag 多选筛选按钮 + 已选胶囊 + 下拉面板 + ✕ 清除 ---------- */
+/* wrap 独占第二行：内部为 标签按钮 → ✕ 清除 → 已选胶囊，同一行排列，
+   已选胶囊多时在 wrap 内换行，不影响搜索框宽度 */
+.novel-ss-tag-filter-wrap {
+  position: relative;
+  flex: 1 1 100%;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.novel-ss-tag-filter-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 6px;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.8rem;
+  padding: 4px 8px;
+  outline: none;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    border-color 0.12s ease,
+    background 0.12s ease;
+}
+
+.novel-ss-tag-filter-btn:hover,
+.novel-ss-tag-filter-btn:focus-visible {
+  border-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+.novel-ss-tag-filter-btn.novel-ss-tag-filter-active {
+  border-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 14%,
+    transparent
+  );
+}
+
+/* 已选筛选胶囊区（按钮右侧，占剩余宽度，多时内部换行） */
+.novel-ss-tag-filter-chips {
+  flex: 1 1 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  min-width: 0;
+}
+
+.novel-ss-tag-filter-chip {
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0 7px;
+  line-height: 1.7;
+}
+
+/* 多选下拉面板：挂 panel 内 fixed 定位，视口边缘自动翻转 */
+.novel-ss-tag-filter-dropdown {
+  position: fixed;
+  z-index: 100001; /* 压过弹窗 overlay */
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #1a1d23));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 8px;
+  padding: 4px;
+  max-height: 260px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+
+.novel-ss-tag-filter-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.8rem;
+  transition: background 0.12s ease;
+}
+
+.novel-ss-tag-filter-opt:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+
+.novel-ss-tag-filter-opt i {
+  flex: none;
+  width: 14px;
+  text-align: center;
+  opacity: 0.7;
+}
+
+.novel-ss-tag-filter-opt.novel-ss-tag-filter-opt-on {
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+.novel-ss-tag-filter-opt.novel-ss-tag-filter-opt-on i {
+  opacity: 1;
+}
+
+.novel-ss-tag-filter-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+    transparent
+  );
+}
+
+.novel-ss-tag-filter-empty {
+  font-size: 12px;
+  opacity: 0.6;
+  padding: 6px 8px;
+}
+
+.novel-ss-tag-filter-clear {
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 3px;
+  border-radius: 5px;
+  flex: none;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.novel-ss-tag-filter-clear:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+/* ---------- toolbar：管理标签按钮（与关闭按钮一致风格） ---------- */
+.novel-ss-manage-tag {
+  cursor: pointer;
+  opacity: 0.7;
+  padding: 4px;
+  border-radius: 6px;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.novel-ss-manage-tag:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+.novel-ss-manage-tag.novel-ss-manage-tag-active {
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  opacity: 1;
+}
+
+/* 移动端：指令库面板全屏化 */
+@media (max-width: 600px) {
+  .novel-ss-panel {
+    /* 铁律：不用 bottom 拉伸 —— ST 移动端 <html> 带 transform，
+       fixed 后代以 <html>(高 0) 为包含块，top+bottom 拉伸会塌陷成 0（面板不可见）。
+       改用显式视口单位高度 + 顶部定位。 */
+    left: 8px !important;
+    right: 8px !important;
+    top: 8px !important;
+    bottom: auto !important;
+    width: auto !important;
+    height: calc(100vh - 16px) !important; /* vh 回退（旧浏览器） */
+    height: calc(100dvh - 16px) !important; /* 动态视口：地址栏显隐时自适应 */
+  }
+  /* 逐个标签：窄屏下选择框占满第二行 */
+  .novel-ss-batch-tag-row-indiv {
+    flex-wrap: wrap;
+  }
+  .novel-ss-batch-tag-picker {
+    flex: 1 1 100%;
+  }
+  /* 窄屏：标签筛选按钮、X、已选胶囊保持同行（多余在胶囊区内换行） */
+  .novel-ss-tag-filter-wrap {
+    flex-wrap: wrap;
+    flex: 1 1 100%;
+  }
+  .novel-ss-tag-filter-btn {
+    flex: none;
+    justify-content: center;
+  }
+  .novel-ss-tag-filter-chips {
+    flex: 1 1 auto;
+  }
+}
+
+/* ---------- tag 管理弹窗（管理标签） ---------- */
+.novel-ss-tag-manage {
+  width: min(560px, 92vw);
+}
+
+/* 顶部：批量新增输入 + 按钮 */
+.novel-ss-tag-manage-new {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.novel-ss-tag-manage-new .novel-ss-tag-new-input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.novel-ss-tag-manage-add {
+  flex: none;
+  background: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  color: #11111b;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.novel-ss-tag-manage-add:hover {
+  filter: brightness(1.1);
+}
+
+/* 工具栏：全选 / 框选 / 反选 / 计数 / 删除选中 */
+.novel-ss-tag-manage-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding-bottom: 8px;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+      transparent
+    );
+  margin-bottom: 8px;
+}
+
+.novel-ss-tag-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  font-size: 0.75rem;
+  border-radius: 5px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+      transparent
+    );
+  background: transparent;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  cursor: pointer;
+  opacity: 0.8;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+
+.novel-ss-tag-btn:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+
+.novel-ss-tag-btn.novel-ss-tag-btn-active {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 22%,
+    transparent
+  );
+  border-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+.novel-ss-tag-manage-toolbar .novel-ss-tag-manage-count {
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+/* tag 列表（可多选行） */
+.novel-ss-tag-manage-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.novel-ss-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+
+.novel-ss-tag-row:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+}
+
+.novel-ss-tag-row.novel-ss-tag-row-selected {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 18%,
+    transparent
+  );
+}
+
+.novel-ss-tag-row-check {
+  flex: none;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.novel-ss-tag-row.novel-ss-tag-row-selected .novel-ss-tag-row-check {
+  opacity: 1;
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+/* 行内计数与操作区 */
+.novel-ss-tag-row .novel-ss-tag-manage-count {
+  flex: 1 1 auto;
+  text-align: right;
+  font-size: 0.75rem;
+  opacity: 0.6;
+}
+
+.novel-ss-tag-manage-actions {
+  display: none;
+  gap: 6px;
+  flex: none;
+}
+
+.novel-ss-tag-row:hover .novel-ss-tag-manage-actions {
+  display: inline-flex;
+}
+
+.novel-ss-tag-manage-actions i {
+  font-size: 0.78rem;
+  padding: 3px;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.novel-ss-tag-manage-actions i:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+
+/* ---------- 指令 tag 弹窗（单条指令勾选标签） ---------- */
+.novel-ss-cmd-tag-list {
+  max-height: 46vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 4px;
+}
+
+.novel-ss-cmd-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+
+.novel-ss-cmd-tag-row:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+}
+
+.novel-ss-cmd-tag-check {
+  flex: none;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+
+.novel-ss-cmd-tag-row.novel-ss-cmd-tag-on .novel-ss-cmd-tag-check {
+  opacity: 1;
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+/* ---------- 新建指令弹窗 ---------- */
+/* 双类提高特异性：覆盖基础 .novel-ss-edit-popup 的整窗滚动（overflow-y: auto） */
+.novel-ss-edit-popup.novel-ss-new-cmd-popup {
+  width: min(560px, 92vw);
+  max-height: 82vh;
+  overflow: hidden; /* 弹窗整体不滚动，仅标签区内部滚动 */
+  display: flex;
+  flex-direction: column;
+}
+.novel-ss-new-cmd-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex: none;
+}
+.novel-ss-new-cmd-title > span {
+  font-size: 16px;
+  font-weight: 600;
+}
+.novel-ss-new-cmd-close {
+  font-size: 1rem;
+  opacity: 0.7;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+}
+.novel-ss-new-cmd-close:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+.novel-ss-new-cmd-popup
+  .novel-ss-edit-popup-field
+  + .novel-ss-edit-popup-field {
+  margin-top: 12px;
+}
+/* 除标签区外字段不收缩，高度留给标签区弹性伸缩 */
+.novel-ss-new-cmd-popup > .novel-ss-edit-popup-field {
+  flex: none;
+}
+/* 标签字段区：弹性占满剩余空间，内部列表滚动，底部按钮固定可见 */
+/* 特异性需高于「.novel-ss-new-cmd-popup > .novel-ss-edit-popup-field { flex: none }」 */
+.novel-ss-new-cmd-popup > .novel-ss-new-cmd-tags-field {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.novel-ss-new-cmd-tags-field .novel-ss-cmd-tag-list {
+  flex: 1 1 auto;
+  min-height: 60px;
+  max-height: 36vh; /* 标签过多时仅在标签区滚动，不挤压按钮 */
+  margin-bottom: 0;
+}
+.novel-ss-new-cmd-text {
+  resize: vertical;
+  min-height: 120px;
+  max-height: 32vh;
+  font-family: inherit;
+  line-height: 1.5;
+}
+/* 底部按钮：清空弹窗（左侧弱化） / 取消 / 确认并新建下一个 / 确认并退出（主色） */
+.novel-ss-new-cmd-popup .novel-ss-edit-popup-actions {
+  flex: none;
+  flex-wrap: wrap;
+}
+.novel-ss-new-cmd-clear {
+  background: transparent;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 35%,
+      transparent
+    );
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  margin-right: auto; /* 推向左，其余按钮靠右 */
+}
+.novel-ss-new-cmd-clear:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+.novel-ss-new-cmd-next {
+  background: transparent;
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 60%,
+      transparent
+    );
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.novel-ss-new-cmd-next:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 18%,
+    transparent
+  );
+}
+
+/* ---------- 从 txt 导入指令弹窗 ---------- */
+.novel-ss-import-popup {
+  width: min(560px, 92vw);
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden; /* 弹窗整体不滚动，仅预览区内部滚动 */
+}
+.novel-ss-import-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  flex: none;
+}
+.novel-ss-import-title > span {
+  font-size: 16px;
+  font-weight: 600;
+}
+.novel-ss-import-close {
+  font-size: 1rem;
+  opacity: 0.7;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+}
+.novel-ss-import-close:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+/* 选择文件区头部：描述文字与「选择 txt 文件」按钮同行 */
+.novel-ss-import-files-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.novel-ss-import-files-header label {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+/* 已选文件列表 */
+.novel-ss-import-files {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+  max-height: 96px;
+  overflow-y: auto;
+}
+/* 未选择文件时整个列表区不留空隙（下方直接是分隔符模板） */
+.novel-ss-import-files:empty {
+  display: none;
+}
+.novel-ss-import-file-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+      transparent
+    );
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+.novel-ss-import-file-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.novel-ss-import-file-meta {
+  flex: none;
+  opacity: 0.55;
+  font-size: 11px;
+}
+.novel-ss-import-file-del {
+  flex: none;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 2px;
+  border-radius: 4px;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+}
+.novel-ss-import-file-del:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 12%,
+    transparent
+  );
+}
+/* 选择文件按钮 */
+.novel-ss-import-pick {
+  background: transparent;
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 60%,
+      transparent
+    );
+  padding: 8px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  flex: none;
+  white-space: nowrap;
+  transition: background 0.12s ease;
+}
+.novel-ss-import-pick:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 18%,
+    transparent
+  );
+}
+/* 保留分隔符复选框 */
+.novel-ss-import-keepsep {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  user-select: none;
+}
+.novel-ss-import-keepsep input {
+  flex: none;
+  margin: 0;
+  accent-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+.novel-ss-import-keepsep span {
+  line-height: 1.4;
+  opacity: 0.85;
+}
+/* 分隔符分页：编辑框右下角导航条（<1/N> + 新增/删除） */
+.novel-ss-import-sep-tabs {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.novel-ss-import-sep-wrap {
+  position: relative;
+}
+.novel-ss-import-sep-wrap .novel-ss-import-sep {
+  padding-right: 84px; /* 为右下角导航条留出空间 */
+}
+.novel-ss-import-sep-nav {
+  position: absolute;
+  right: 6px;
+  bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.novel-ss-import-sep-nav button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.novel-ss-import-sep-nav button:hover:not(:disabled) {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+    transparent
+  );
+}
+.novel-ss-import-sep-nav button:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.novel-ss-import-sep-nav .novel-ss-import-sep-count {
+  min-width: 34px;
+  text-align: center;
+  font-size: 10px;
+  font-family: monospace;
+  opacity: 0.75;
+  line-height: 20px;
+}
+.novel-ss-import-sep-nav .novel-ss-import-sep-add {
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+.novel-ss-import-sep-nav .novel-ss-import-sep-del {
+  color: var(--novel-danger, #e5484d);
+}
+.novel-ss-import-sep-nav .novel-ss-import-sep-add:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 18%,
+    transparent
+  );
+}
+.novel-ss-import-sep-nav .novel-ss-import-sep-del:hover:not(:disabled) {
+  background: color-mix(
+    in srgb,
+    var(--novel-danger, #e5484d) 18%,
+    transparent
+  );
+}
+/* 解析预览区：弹性占满剩余空间，内部滚动 */
+.novel-ss-import-popup > .novel-ss-import-preview-field {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.novel-ss-import-preview {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+      transparent
+    );
+  border-radius: 6px;
+  padding: 6px;
+  background: rgba(0, 0, 0, 0.15);
+}
+.novel-ss-import-preview-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.novel-ss-import-preview-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.novel-ss-import-preview-idx {
+  flex: none;
+  font-size: 11px;
+  opacity: 0.55;
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.novel-ss-import-preview-nav {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 2px;
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.novel-ss-import-preview-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 10px;
+  cursor: pointer;
+  opacity: 0.7;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease;
+}
+.novel-ss-import-preview-nav-btn:hover:not(:disabled) {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+    transparent
+  );
+}
+.novel-ss-import-preview-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.novel-ss-import-preview-count {
+  min-width: 34px;
+  text-align: center;
+  font-size: 10px;
+  line-height: 20px;
+  opacity: 0.75;
+  font-family: monospace;
+}
+.novel-ss-import-preview-del {
+  flex: none;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 2px;
+  border-radius: 4px;
+  font-size: 12px;
+  transition:
+    opacity 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.novel-ss-import-preview-del:hover {
+  opacity: 1;
+  color: var(--novel-danger, #e5484d);
+  background: color-mix(in srgb, var(--novel-danger, #e5484d) 15%, transparent);
+}
+.novel-ss-import-preview-text {
+  width: 100%;
+  min-height: 96px;
+  resize: vertical;
+  white-space: pre-wrap;
+  word-break: break-all;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+      transparent
+    );
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  line-height: 1.6;
+}
+/* 预览行内字段（名称 / 内容 / 标签），仿新建指令弹窗布局 */
+.novel-ss-import-preview-field-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.novel-ss-import-preview-label2 {
+  font-size: 12px;
+  opacity: 0.75;
+  line-height: 1.4;
+}
+.novel-ss-import-preview-name {
+  width: 100%;
+}
+/* 标签多选列表：预览区自身已滚动，标签列表限高避免挤压底部按钮 */
+.novel-ss-import-preview-tags {
+  max-height: 22vh;
+  margin-bottom: 0;
+}
+/* 导入确认按钮禁用态 */
+.novel-ss-import-confirm:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- 批量设置标签弹窗 ---------- */
+.novel-ss-batch-tag-popup {
+  width: min(560px, 92vw);
+}
+
+/* 统一模式：全选 / 清空 工具行 */
+.novel-ss-batch-tag-utils {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+/* 统一模式：tag 多选行 */
+.novel-ss-batch-tag-check {
+  flex: none;
+  font-size: 0.85rem;
+  opacity: 0.7;
+}
+.novel-ss-batch-tag-row.novel-ss-batch-tag-on .novel-ss-batch-tag-check {
+  opacity: 1;
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+
+.novel-ss-batch-tag-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 10px;
+}
+
+.novel-ss-batch-tag-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+
+.novel-ss-batch-tag-row:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+}
+
+.novel-ss-batch-tag-row.novel-ss-batch-tag-on {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 18%,
+    transparent
+  );
+}
+
+/* 统一模式：操作行（添加/移除下拉）与列表间的间距 */
+.novel-ss-batch-tag-uniform .novel-ss-edit-popup-field {
+  margin-top: 8px;
+}
+
+/* 逐个模式：每条指令一行「指令名 → 选择框」+ 下拉面板 */
+.novel-ss-batch-tag-individual-label {
+  font-size: 12px;
+  opacity: 0.75;
+  margin-top: 10px;
+  display: block;
+}
+.novel-ss-batch-tag-individual-list {
+  max-height: 40vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+  padding-right: 4px;
+}
+/* 行：指令名(flex 1) + 箭头 + 选择框(固定宽) —— 模仿逐个重命名 */
+.novel-ss-batch-tag-row-indiv {
+  cursor: default;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.novel-ss-batch-tag-cmd-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  opacity: 0.9;
+}
+.novel-ss-batch-tag-arrow {
+  color: #a6adc8;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+/* 选择框：默认显示「点击选择标签」，选中后内部渲染 tag 胶囊（含 ✕ 移除） */
+.novel-ss-batch-tag-picker {
+  flex: 0 0 200px;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  padding: 3px 8px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 6px;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: border-color 0.12s ease;
+}
+.novel-ss-batch-tag-picker:hover,
+.novel-ss-batch-tag-picker:focus-within {
+  border-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+}
+.novel-ss-batch-tag-picker-placeholder {
+  font-size: 12px;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  opacity: 0.45;
+  line-height: 1.6;
+}
+.novel-ss-batch-tag-picker-chip {
+  cursor: pointer;
+  font-size: 0.68rem;
+  padding: 0 6px;
+  line-height: 1.6;
+}
+/* 选择框尾部下拉 caret（指示可展开） */
+.novel-ss-batch-tag-picker-caret {
+  margin-left: auto;
+  font-size: 10px;
+  opacity: 0.5;
+  align-self: center;
+  flex-shrink: 0;
+  line-height: 1;
+}
+/* 下拉面板：挂 overlay 下 fixed 定位，视口边缘自动翻转 */
+.novel-ss-batch-tag-dropdown {
+  position: fixed;
+  z-index: 100001; /* 压过弹窗 overlay */
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #1a1d23));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 8px;
+  padding: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+.novel-ss-batch-tag-dropdown-empty {
+  font-size: 12px;
+  opacity: 0.6;
+  padding: 6px 8px;
+}
+.novel-ss-batch-tag-opt {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.12s ease;
+}
+.novel-ss-batch-tag-opt:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 8%,
+    transparent
+  );
+}
+.novel-ss-batch-tag-opt-on {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 18%,
+    transparent
+  );
+}
+.novel-ss-batch-tag-opt-check {
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  flex-shrink: 0;
+  font-size: 13px;
+  width: 16px;
+  text-align: center;
+}
+.novel-ss-batch-tag-opt .novel-ss-tag-chip {
+  cursor: pointer;
+}
+/* 逐一添加模式：已有标签置灰锁定（自动保留，不可取消） */
+.novel-ss-batch-tag-opt-locked {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: rgba(0, 0, 0, 0.12);
+}
+.novel-ss-batch-tag-opt-locked:hover {
+  background: rgba(0, 0, 0, 0.12);
+}
+.novel-ss-batch-tag-opt-locked .novel-ss-batch-tag-opt-check,
+.novel-ss-batch-tag-opt-locked .novel-ss-tag-chip {
+  cursor: not-allowed;
+}
+
+/* ---------- 番外指令库：批量重命名弹窗（Promise 模式，参照 CFM） ---------- */
+.novel-ss-edit-popup-overlay {
+  position: fixed;
+  /* 铁律：不用 inset:0 的 top/bottom 拉伸 —— ST 移动端 <html> 带 transform，
+     fixed 后代改以 <html>(高 0) 为包含块，top+bottom 拉伸会塌陷成 0。
+     改用显式视口单位定位/尺寸，规避包含块影响。 */
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh; /* vh 回退（旧浏览器） */
+  height: 100dvh; /* 动态视口：移动端地址栏显隐时自适应 */
+  background: rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000; /* 压过酒馆所有层级 */
+  animation: novel-ss-fade-in 0.2s ease;
+}
+
+.novel-ss-edit-popup {
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #1a1d23));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 10px;
+  width: min(480px, 90vw);
+  max-height: 80vh;
+  overflow-y: auto;
+  padding: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 0.9rem;
+}
+
+.novel-ss-edit-popup-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  margin-bottom: 14px;
+}
+
+/* 名称预览列表 */
+.novel-ss-edit-popup-names {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.novel-ss-edit-name-item {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 14%,
+    transparent
+  );
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  padding: 2px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.novel-ss-edit-name-more {
+  opacity: 0.7;
+}
+
+/* 公共前后缀检测胶囊 */
+.novel-ss-edit-popup-detect {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+.novel-ss-edit-detect-label {
+  font-size: 12px;
+  opacity: 0.6;
+}
+.novel-ss-edit-detect-none {
+  font-size: 12px;
+  opacity: 0.5;
+}
+.novel-ss-edit-detect-item {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 15%,
+    transparent
+  );
+  color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  padding: 2px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  border: 1px solid transparent;
+  transition: background 0.12s ease;
+}
+.novel-ss-edit-detect-item:hover {
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 28%,
+    transparent
+  );
+}
+
+/* 输入项 */
+.novel-ss-edit-popup-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.novel-ss-edit-popup-field label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.novel-ss-edit-input {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 6px;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  padding: 8px 10px;
+  font-size: 13px;
+  box-sizing: border-box;
+}
+.novel-ss-edit-input:focus {
+  border-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  outline: none;
+  box-shadow: 0 0 0 2px
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9)) 25%,
+      transparent
+    );
+}
+
+/* 按钮组：右对齐 */
+.novel-ss-edit-popup-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+.novel-ss-edit-popup-confirm {
+  background: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  color: #11111b;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+.novel-ss-edit-popup-cancel {
+  background: transparent;
+  color: #f38ba8;
+  border: 1px solid #f38ba8;
+  padding: 8px 18px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+.novel-ss-edit-popup-cancel:hover {
+  background: rgba(243, 139, 168, 0.15);
+}
+
+@keyframes novel-ss-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* 批量重命名：下拉（select 复用 .novel-ss-edit-input 基础样式） */
+.novel-ss-rename-action {
+  appearance: auto;
+  cursor: pointer;
+}
+
+/* 自动检测公共前/后缀区（仅删除前缀/后缀操作显示） */
+.novel-ss-rename-auto-detect {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.novel-ss-rename-detected {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+/* 逐个重命名表格：容器限高滚动 */
+.novel-ss-rename-individual-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.novel-ss-rename-individual-field > label {
+  font-size: 12px;
+  opacity: 0.75;
+}
+.novel-ss-rename-individual-list {
+  max-height: 300px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+/* 行：旧名(40%) + 箭头 + 输入框(flex 1) */
+.novel-ss-rename-individual-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.novel-ss-rename-old-name {
+  flex: 0 0 40%;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  font-size: 12px;
+}
+.novel-ss-rename-arrow {
+  color: #a6adc8;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+.novel-ss-rename-new-input {
+  flex: 1;
+  min-width: 0;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
+  border-radius: 6px;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  padding: 6px 8px;
+  font-size: 12px;
+  box-sizing: border-box;
+}
+.novel-ss-rename-new-input:focus {
+  border-color: var(--novel-accent, var(--SmartThemeGlowColor, #4f9cf9));
+  outline: none;
+}
+
+/* ---------- 移动端：新建指令弹窗紧凑布局 ---------- */
+/* 软键盘弹出时视口高度骤减（如 375×400），82vh 的 max-height 放不下
+   标题/名称/正文/按钮的固定内容，标签区被压到 0、底部按钮被 overflow:hidden 裁剪。
+   移动端铁律：本媒体查询放在文件末尾，覆盖前面同特异性规则。
+   常规移动端高度（≥500px）保持 82vh 居中留白；仅极矮视口才全屏。 */
+@media (max-width: 600px) {
+  .novel-ss-edit-popup.novel-ss-new-cmd-popup {
+    padding: 14px 16px; /* 覆盖 20px，节省垂直空间 */
+  }
+  .novel-ss-new-cmd-title {
+    margin-bottom: 10px; /* 覆盖 14px */
+  }
+  .novel-ss-new-cmd-popup
+    .novel-ss-edit-popup-field
+    + .novel-ss-edit-popup-field {
+    margin-top: 8px; /* 覆盖 12px */
+  }
+  .novel-ss-new-cmd-popup .novel-ss-edit-popup-actions {
+    margin-top: 10px; /* 覆盖 16px */
+  }
+  .novel-ss-new-cmd-popup .novel-ss-edit-popup-actions button {
+    padding-top: 6px; /* 覆盖 8px */
+    padding-bottom: 6px;
+  }
+}
+/* 极矮视口（软键盘弹出）：82vh 放不下固定内容，改全屏上限 + 正文压缩 */
+@media (max-width: 600px) and (max-height: 500px) {
+  .novel-ss-edit-popup.novel-ss-new-cmd-popup {
+    max-height: calc(100dvh - 24px); /* 覆盖 82vh：视口多矮弹窗都不超屏 */
+  }
+  .novel-ss-new-cmd-text {
+    min-height: 72px; /* 覆盖 120px：短视口下正文默认高度让步给按钮 */
+    max-height: 24vh; /* 覆盖 32vh */
+  }
+}
+
+/* ---------- 移动端：txt 导入弹窗 ---------- */
+/* 移动端铁律：本媒体查询放在文件末尾，覆盖前面同特异性规则 */
+@media (max-width: 600px) {
+  .novel-ss-import-popup {
+    padding: 14px 16px; /* 覆盖 20px，节省垂直空间 */
+  }
+  .novel-ss-import-title {
+    margin-bottom: 10px; /* 覆盖 14px */
+  }
+  .novel-ss-import-popup
+    .novel-ss-edit-popup-field
+    + .novel-ss-edit-popup-field {
+    margin-top: 10px; /* 覆盖默认 12px 间距 */
+  }
+  .novel-ss-import-popup .novel-ss-edit-popup-actions {
+    margin-top: 10px; /* 覆盖 16px */
+  }
+  .novel-ss-import-popup .novel-ss-edit-popup-actions button {
+    padding-top: 6px; /* 覆盖 8px */
+    padding-bottom: 6px;
+  }
+}
+/* 极矮视口（软键盘弹出）：82vh 放不下，改全屏上限 */
+@media (max-width: 600px) and (max-height: 500px) {
+  .novel-ss-import-popup {
+    max-height: calc(100dvh - 24px); /* 覆盖 82vh */
+  }
+  .novel-ss-import-files {
+    max-height: 64px; /* 覆盖 96px，让预览区有更多空间 */
+  }
+  .novel-ss-import-sep-wrap .novel-ss-import-sep {
+    padding-right: 78px; /* 极矮视口下导航条更紧凑 */
+    min-height: 64px; /* 覆盖 rows=4 的初始高度，软键盘弹出时节省空间 */
+  }
+  .novel-ss-import-sep-nav button {
+    width: 18px;
+    height: 18px;
+  }
+  .novel-ss-import-sep-nav .novel-ss-import-sep-count {
+    min-width: 30px;
+  }
+  .novel-ss-import-preview-nav-btn {
+    width: 18px;
+    height: 18px;
+  }
+  .novel-ss-import-preview-count {
+    min-width: 30px;
+  }
+  .novel-ss-import-preview-text {
+    min-height: 64px; /* 覆盖 96px */
+  }
+  .novel-ss-import-preview-tags {
+    max-height: 14vh; /* 极矮视口：标签列表进一步限高，避免挤压按钮 */
   }
 }

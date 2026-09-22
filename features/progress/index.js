@@ -68,5 +68,16 @@ export function createProgressCore(deps) {
     saveSettings();
   }
 
-  return { save, load, clear, clearByAvatar };
+  /** 把某聊天的阅读位置迁移到新文件名（重命名聊天时同步迁移 key） */
+  function renameKey(avatar, oldFileName, newFileName) {
+    const t = table();
+    const oldKey = `${avatar}::${oldFileName}`;
+    if (t[oldKey]) {
+      t[`${avatar}::${newFileName}`] = t[oldKey];
+      delete t[oldKey];
+      saveSettings();
+    }
+  }
+
+  return { save, load, clear, clearByAvatar, renameKey };
 }
