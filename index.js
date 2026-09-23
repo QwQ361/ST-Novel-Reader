@@ -17,6 +17,7 @@ import {
 import { createChatlogsCore } from "./features/chatlogs/index.js";
 import { createProgressCore } from "./features/progress/index.js";
 import { createReaderCore } from "./features/reader/index.js";
+import { createScrollReader } from "./features/reader/scroll.js";
 import { createRegexCore } from "./features/regex/index.js";
 import { createCommandLibCore } from "./features/side-story/command-lib.js";
 import { createInjectCore } from "./features/side-story/inject.js";
@@ -188,6 +189,27 @@ jQuery(async () => {
 
   const progress = createProgressCore({ ...deps });
 
+  // 连续滚动阅读核心（「阅读方式 = 滚动」时使用）：按需加载章节块 + 当前章判定。
+  // 回调引用 UI 层函数（applyReaderStyles / injectReaderChatActions / updateBottomButtons），
+  // 均为函数声明（提升），且仅在运行时调用，故可在此提前实例化。
+  let scrollReader = null; // 惰性创建（避免每次打开阅读器都建新实例）
+  function getScrollReader() {
+    if (scrollReader) return scrollReader;
+    scrollReader = createScrollReader({
+      reader,
+      onCurrentChapterChange: (chapterIndex) => {
+        state.currentChapter = chapterIndex;
+        updateBottomButtons();
+      },
+      onRenderedChapter: (chapterIndex, block) => {
+        if (readerScrollEl) applyReaderStyles();
+        // 滚动模式下每个章节块都是独立容器，操作按钮注入到新渲染的块内
+        if (block) injectReaderChatActions(block);
+      },
+    });
+    return scrollReader;
+  }
+
   // 书签：收藏章节 + 收藏列表（数据存 extension_settings，按 角色+聊天 维度）
   const bookmarks = createBookmarksCore({ ...deps });
 
@@ -223,6 +245,8 @@ jQuery(async () => {
     if (g.readerSettings.textColor) delete g.readerSettings.textColor; // 旧字段（被主题取代）
     if (g.readerSettings.bgColor) delete g.readerSettings.bgColor; // 旧字段（被主题取代）
     if (!g.readerSettings.themeId) g.readerSettings.themeId = ""; // 阅读器主题（"" = 跟随酒馆）
+    // 阅读方式："paged" = 单章分页（默认，上一章/下一章整章跳转）；"scroll" = 连续滚动阅读
+    if (!g.readerSettings.readMode) g.readerSettings.readMode = "paged";
     // 阅读窗口模式："fullscreen" = 全屏（默认），"floating" = 可拖动/可缩放的悬浮窗
     if (!g.windowMode) g.windowMode = "fullscreen";
     // 悬浮窗上次的大小与位置 {w,h,x,y}（关闭→重开恢复）
@@ -467,6 +491,8 @@ jQuery(async () => {
       saveLastView(); // 记住关闭前的页面（角色/聊天/章节）
       charFolderPanel?.close(); // 关闭可能打开的角色文件夹过滤面板（独立挂 body）
       reader.abort();
+      // 连续滚动阅读核心：移除滚动监听并清空容器（下次打开重新初始化）
+      scrollReader?.destroy();
       // 注意：不清理 body 上的主题 class —— 阅读器与番外指令库是两个独立弹窗，
       // 用指令库须先关阅读器；body 主题 class 由持久化 themeId 独立维护（syncBodyThemeClass），
       // 保证指令库在阅读器关闭后仍使用阅读器选定的内置主题配色。
@@ -735,6 +761,8 @@ jQuery(async () => {
   function setPage(page) {
     state.page = page;
     bodyEl.innerHTML = "";
+    // 离开正文页：销毁连续滚动阅读状态（容器已被清空，移除残留监听）
+    if (page !== "reader") scrollReader?.destroy();
     const backBtn = topbarEl.querySelector('[data-action="back"]');
     const backActions = {
       bookshelf: "close", // 书架页：返回按钮 = 关闭阅读器（退出到 ST 主界面）
@@ -1357,6 +1385,60 @@ jQuery(async () => {
 
   // ============ 正文阅读页（按章渲染） ============
 
+  /** 是否为连续滚动阅读模式（设置页「阅读方式 = 滚动」） */
+  function isScrollReadMode() {
+    return getGlobalSettings().readerSettings?.readMode === "scroll";
+  }
+
+  /** 滚动保存阅读进度（分页模式当前章固定；滚动模式当前章随滚动动态变化） */
+  function bindScrollProgressSaving(scroll, chapterIndex) {
+    scroll.addEventListener("scroll", () => {
+      if (!state.currentChar || !state.currentChat) return;
+      clearTimeout(saveTimer);
+      const charAvatar = state.currentChar.avatar;
+      const chatFileName = state.currentChat.file_name;
+      saveTimer = setTimeout(() => {
+        const chapter = isScrollReadMode()
+          ? getScrollReader().getCurrentChapter() || chapterIndex
+          : chapterIndex;
+        progress.save(charAvatar, chatFileName, {
+          chapter,
+          scrollTop: scroll.scrollTop,
+          updatedAt: Date.now(),
+        });
+      }, 400);
+    });
+  }
+
+  /** 点击正文（非交互元素）切换顶/底栏显隐（悬浮窗模式禁用：顶栏即拖动柄，不可隐藏） */
+  function bindChromeToggle(scroll) {
+    scroll.addEventListener("click", (e) => {
+      if (getGlobalSettings().windowMode === "floating") {
+        return;
+      }
+      if (
+        e.target.closest(".novel-reader-inner") &&
+        !e.target.closest("a,img,button,input,.novel-msg-name")
+      ) {
+        bodyEl.classList.toggle("novel-chrome-hidden");
+      }
+    });
+  }
+
+  /** 构建正文滚动容器（.novel-reader-page + .novel-reader-scroll） */
+  function createReaderScrollPage() {
+    const page = document.createElement("div");
+    page.className = "novel-reader-page";
+    const scroll = document.createElement("div");
+    scroll.className = "novel-reader-scroll";
+    readerScrollEl = scroll;
+    page.appendChild(scroll);
+    bodyEl.appendChild(page);
+    bindScrollProgressSaving(scroll, state.currentChapter || 1);
+    bindChromeToggle(scroll);
+    return scroll;
+  }
+
   /**
    * 打开章节并可定位到指定消息（搜索结果跳转）。
    * @param {number} chapterIndex 章节号（从 1 开始）
@@ -1367,67 +1449,41 @@ jQuery(async () => {
     setPage("reader");
     if (msgOffset != null) state.pendingHighlightOffset = msgOffset;
 
-    const page = document.createElement("div");
-    page.className = "novel-reader-page";
-    const scroll = document.createElement("div");
-    scroll.className = "novel-reader-scroll";
-    readerScrollEl = scroll;
-    page.appendChild(scroll);
-    bodyEl.appendChild(page);
+    const scroll = createReaderScrollPage();
 
-    // 滚动保存进度（防抖；闭包捕获本章号，避免切章后旧滚动保存错章节）
-    scroll.addEventListener("scroll", () => {
-      if (!state.currentChar || !state.currentChat) return;
-      clearTimeout(saveTimer);
-      const chapter = chapterIndex;
-      const charAvatar = state.currentChar.avatar;
-      const chatFileName = state.currentChat.file_name;
-      saveTimer = setTimeout(() => {
-        progress.save(charAvatar, chatFileName, {
-          chapter,
-          scrollTop: scroll.scrollTop,
-          updatedAt: Date.now(),
-        });
-      }, 400);
-    });
-
-    // 点击正文（非交互元素）切换顶/底栏显隐（悬浮窗模式禁用：顶栏即拖动柄，不可隐藏）
-    scroll.addEventListener("click", (e) => {
-      if (getGlobalSettings().windowMode === "floating") {
-        return;
+    if (isScrollReadMode()) {
+      // 滚动阅读模式：连续滚动容器 + 定位到消息
+      await getScrollReader().open(scroll, chapterIndex);
+      if (msgOffset != null) {
+        await getScrollReader().scrollToMessage(chapterIndex, msgOffset);
       }
-      if (
-        e.target.closest(".novel-reader-inner") &&
-        !e.target.closest("a,img,button,input,.novel-msg-name")
-      ) {
-        bodyEl.classList.toggle("novel-chrome-hidden");
-      }
-    });
-
-    await reader.renderChapter(scroll, chapterIndex, {
-      highlightOffset: msgOffset ?? null,
-      onRendered: () => {
-        applyReaderStyles();
-        // 阅读页聊天操作按钮（删除/重命名，受 showReaderChatActions 开关控制）
-        injectReaderChatActions(scroll);
-        const saved = progress.load(
-          state.currentChar.avatar,
-          state.currentChat.file_name,
-        );
-        if (
-          state.pendingHighlightOffset == null &&
-          saved &&
-          saved.chapter === chapterIndex &&
-          saved.scrollTop &&
-          scroll.scrollTop === 0
-        ) {
-          requestAnimationFrame(() => {
-            scroll.scrollTop = saved.scrollTop;
-          });
-        }
-        state.pendingHighlightOffset = null;
-      },
-    });
+      state.pendingHighlightOffset = null;
+    } else {
+      await reader.renderChapter(scroll, chapterIndex, {
+        highlightOffset: msgOffset ?? null,
+        onRendered: () => {
+          applyReaderStyles();
+          // 阅读页聊天操作按钮（删除/重命名，受 showReaderChatActions 开关控制）
+          injectReaderChatActions(scroll);
+          const saved = progress.load(
+            state.currentChar.avatar,
+            state.currentChat.file_name,
+          );
+          if (
+            state.pendingHighlightOffset == null &&
+            saved &&
+            saved.chapter === chapterIndex &&
+            saved.scrollTop &&
+            scroll.scrollTop === 0
+          ) {
+            requestAnimationFrame(() => {
+              scroll.scrollTop = saved.scrollTop;
+            });
+          }
+          state.pendingHighlightOffset = null;
+        },
+      });
+    }
 
     updateBottomButtons();
   }
@@ -1436,67 +1492,51 @@ jQuery(async () => {
     state.currentChapter = chapterIndex;
     setPage("reader");
 
-    const page = document.createElement("div");
-    page.className = "novel-reader-page";
+    const scroll = createReaderScrollPage();
 
-    const scroll = document.createElement("div");
-    scroll.className = "novel-reader-scroll";
-    readerScrollEl = scroll;
-    page.appendChild(scroll);
-    bodyEl.appendChild(page);
-
-    // 滚动保存进度（防抖；闭包捕获本章号，避免切章后旧滚动保存错章节）
-    scroll.addEventListener("scroll", () => {
-      if (!state.currentChar || !state.currentChat) return;
-      clearTimeout(saveTimer);
-      const chapter = chapterIndex;
-      const charAvatar = state.currentChar.avatar;
-      const chatFileName = state.currentChat.file_name;
-      saveTimer = setTimeout(() => {
-        progress.save(charAvatar, chatFileName, {
-          chapter,
-          scrollTop: scroll.scrollTop,
-          updatedAt: Date.now(),
-        });
-      }, 400);
-    });
-
-    // 点击正文（非交互元素）切换顶/底栏显隐（悬浮窗模式禁用：顶栏即拖动柄，不可隐藏）
-    scroll.addEventListener("click", (e) => {
-      if (getGlobalSettings().windowMode === "floating") {
-        return;
-      }
+    if (isScrollReadMode()) {
+      // 滚动阅读模式：连续滚动阅读（按需加载相邻章节）
+      await getScrollReader().open(scroll, chapterIndex);
+      // 恢复进度：若该章有保存位置则恢复到原位置（起始章位于容器顶部，scrollTop 直接可用）
+      const saved = progress.load(
+        state.currentChar.avatar,
+        state.currentChat.file_name,
+      );
       if (
-        e.target.closest(".novel-reader-inner") &&
-        !e.target.closest("a,img,button,input,.novel-msg-name")
+        saved &&
+        saved.chapter === chapterIndex &&
+        saved.scrollTop &&
+        scroll.scrollTop === 0
       ) {
-        bodyEl.classList.toggle("novel-chrome-hidden");
+        requestAnimationFrame(() => {
+          scroll.scrollTop = saved.scrollTop;
+        });
       }
-    });
-
-    await reader.renderChapter(scroll, chapterIndex, {
-      onRendered: () => {
-        // 应用用户阅读器界面样式（字号/文字色/背景色）
-        applyReaderStyles();
-        // 阅读页聊天操作按钮（删除/重命名，受 showReaderChatActions 开关控制）
-        injectReaderChatActions(scroll);
-        // 恢复进度：若从目录点击则滚动到顶部（已由 renderChapter 完成）
-        const saved = progress.load(
-          state.currentChar.avatar,
-          state.currentChat.file_name,
-        );
-        if (
-          saved &&
-          saved.chapter === chapterIndex &&
-          saved.scrollTop &&
-          scroll.scrollTop === 0
-        ) {
-          requestAnimationFrame(() => {
-            scroll.scrollTop = saved.scrollTop;
-          });
-        }
-      },
-    });
+    } else {
+      await reader.renderChapter(scroll, chapterIndex, {
+        onRendered: () => {
+          // 应用用户阅读器界面样式（字号/文字色/背景色）
+          applyReaderStyles();
+          // 阅读页聊天操作按钮（删除/重命名，受 showReaderChatActions 开关控制）
+          injectReaderChatActions(scroll);
+          // 恢复进度：若从目录点击则滚动到顶部（已由 renderChapter 完成）
+          const saved = progress.load(
+            state.currentChar.avatar,
+            state.currentChat.file_name,
+          );
+          if (
+            saved &&
+            saved.chapter === chapterIndex &&
+            saved.scrollTop &&
+            scroll.scrollTop === 0
+          ) {
+            requestAnimationFrame(() => {
+              scroll.scrollTop = saved.scrollTop;
+            });
+          }
+        },
+      });
+    }
 
     updateBottomButtons();
   }
@@ -1622,6 +1662,11 @@ jQuery(async () => {
     const info = reader.getChatInfo();
     if (!info) return;
     if (nextChapter < 1 || nextChapter > (info.chapters?.length || 0)) return;
+    if (isScrollReadMode()) {
+      // 滚动阅读模式：不重建容器，直接滚动到目标章顶部（缺失章节按需补齐）
+      await getScrollReader().scrollToChapter(nextChapter);
+      return;
+    }
     await openChapter(nextChapter);
   }
 
@@ -2744,6 +2789,45 @@ jQuery(async () => {
     // 面板弹出在底部栏上方（.novel-settings-panel bottom:100% 相对 bottombar 定位）
     bottombarEl.appendChild(panel);
 
+    // 阅读方式：单章分页 / 连续滚动
+    const modeRow = document.createElement("div");
+    modeRow.className = "novel-settings-row";
+    const modeLabel = document.createElement("div");
+    modeLabel.className = "novel-settings-label";
+    modeLabel.textContent = "阅读方式";
+    const modeSwitch = document.createElement("div");
+    modeSwitch.className = "novel-settings-seg";
+    const modeOptions = [
+      { id: "paged", text: "分页" },
+      { id: "scroll", text: "滚动" },
+    ];
+    modeOptions.forEach((opt) => {
+      const seg = document.createElement("button");
+      seg.type = "button";
+      seg.className =
+        "novel-settings-seg-btn" + (rs.readMode === opt.id ? " active" : "");
+      seg.textContent = opt.text;
+      seg.dataset.mode = opt.id;
+      seg.addEventListener("click", () => {
+        if (rs.readMode === opt.id) return;
+        rs.readMode = opt.id;
+        deps.saveSettings();
+        modeSwitch
+          .querySelectorAll(".novel-settings-seg-btn")
+          .forEach((b) => b.classList.remove("active"));
+        seg.classList.add("active");
+        // 切换阅读方式：关闭设置面板并重开当前章节（应用新模式）
+        closeSettingsPanel();
+        if (state.page === "reader" && state.currentChapter) {
+          openChapter(state.currentChapter);
+        }
+      });
+      modeSwitch.appendChild(seg);
+    });
+    modeRow.appendChild(modeLabel);
+    modeRow.appendChild(modeSwitch);
+    panel.appendChild(modeRow);
+
     // 字号
     const fontRow = document.createElement("div");
     fontRow.className = "novel-settings-row";
@@ -2849,11 +2933,13 @@ jQuery(async () => {
     const rs = g.readerSettings;
     const dialogEl = dialogRef.dialog;
 
-    // 字号：只作用于正文容器
+    // 字号：作用于正文容器内所有章节块（分页模式单块；滚动模式多块）
     if (readerScrollEl) {
-      const inner = readerScrollEl.querySelector(".novel-reader-inner");
-      if (inner)
-        inner.style.fontSize = `${rs.fontSize || getDefaultFontSize()}px`;
+      const fontSize = `${rs.fontSize || getDefaultFontSize()}px`;
+      const inners = readerScrollEl.querySelectorAll(".novel-reader-inner");
+      inners.forEach((inner) => {
+        inner.style.fontSize = fontSize;
+      });
     }
 
     const themeId = rs.themeId || "";

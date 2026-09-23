@@ -730,6 +730,18 @@
   margin: 0 auto;
 }
 
+/* 连续滚动阅读：章节块（每章一个独立块，块间以分隔线区分） */
+.novel-chapter-block + .novel-chapter-block {
+  margin-top: 40px;
+  padding-top: 32px;
+  border-top: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 14%,
+      transparent
+    );
+}
+
 .novel-chapter-title {
   font-size: 1.5em;
   font-weight: 700;
@@ -1279,6 +1291,46 @@ body.novel-theme-ocean {
   font-size: 0.8rem;
   opacity: 0.7;
   text-align: right;
+}
+
+/* 阅读方式分段控件（分页 / 滚动） */
+.novel-settings-seg {
+  display: flex;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(
+    in srgb,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 10%,
+    transparent
+  );
+}
+
+.novel-settings-seg-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  border: none;
+  border-radius: 7px;
+  padding: 7px 0;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  background: transparent;
+  opacity: 0.7;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.novel-settings-seg-btn:hover {
+  opacity: 1;
+}
+
+.novel-settings-seg-btn.active {
+  background: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  color: #fff;
+  opacity: 1;
 }
 
 .novel-settings-hint {

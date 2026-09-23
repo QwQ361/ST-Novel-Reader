@@ -88,11 +88,87 @@ export function createReaderCore(deps) {
         if (stripPrefix) title = stripChapterNumberPrefix(title);
         title = filterTitleText(title, titleFilters);
       }
-      return { ...ch, title, titleSource, isSideStory, displayIndex: chapterDisplayIndex };
+      return {
+        ...ch,
+        title,
+        titleSource,
+        isSideStory,
+        displayIndex: chapterDisplayIndex,
+      };
     });
 
     chatCache = { avatar, fileName, messages, chapters };
     return chatCache;
+  }
+
+  /**
+   * 构建单章头部（标题 + 副标题）DOM 元素。
+   * 章节头部用于两种场景：单章渲染（renderChapter）与连续滚动阅读（renderChapterBlock）。
+   * @param {object} chapter 章节对象（含 displayIndex / titleSource / title）
+   * @returns {{titleEl: HTMLElement, subtitleEl: HTMLElement}}
+   */
+  function buildChapterHeader(chapter) {
+    // 构建章标题：第一行「N / 总章数」，第二行「第N章 章节名」
+    // （仅当标题来自标签识别时附带章节名，否则只显示「第N章」，与目录一致）
+    // 番外章与主线章统一显示「第N章」（番外也计入编号）
+    const titleEl = document.createElement("h2");
+    titleEl.className = "novel-chapter-title";
+    const totalChapters = chatCache.chapters.length;
+    titleEl.textContent = `${chapter.displayIndex ?? chapter.index} / ${totalChapters} 章`;
+
+    let subtitleText = `第${chapter.displayIndex ?? chapter.index}章`;
+    if (chapter.titleSource === "tag" && chapter.title) {
+      subtitleText += ` ${chapter.title}`;
+    }
+    const subtitleEl = document.createElement("div");
+    subtitleEl.className = "novel-chapter-subtitle";
+    subtitleEl.textContent = subtitleText;
+
+    return { titleEl, subtitleEl };
+  }
+
+  /**
+   * 渲染单个章节块到指定容器（供滚动连续阅读模式使用）。
+   * 每章一个独立 `.novel-chapter-block` 包裹（.novel-reader-inner + .novel-msg-list），
+   * 章节块间用 `.novel-chapter-divider` 分隔。
+   * @param {HTMLElement} container 目标容器（滚动阅读的正文容器）
+   * @param {number} chapterIndex 章节索引（从 1 开始）
+   * @returns {Promise<HTMLElement|null>} 渲染出的章节块元素（失败返回 null）
+   */
+  async function renderChapterBlock(container, chapterIndex) {
+    if (!chatCache) return null;
+    const chapter = chatCache.chapters[chapterIndex - 1];
+    if (!chapter) return null;
+
+    const block = document.createElement("div");
+    block.className = "novel-chapter-block";
+    block.dataset.chapterIndex = String(chapterIndex);
+
+    const { titleEl, subtitleEl } = buildChapterHeader(chapter);
+    const inner = document.createElement("div");
+    inner.className = "novel-reader-inner";
+    inner.appendChild(titleEl);
+    inner.appendChild(subtitleEl);
+
+    const body = document.createElement("div");
+    body.className = "novel-msg-list";
+    inner.appendChild(body);
+
+    block.appendChild(inner);
+    container.appendChild(block);
+
+    await renderMessagesBatched(
+      { ...deps, renderMarkdown: deps.renderMarkdown },
+      body,
+      chapter.messages,
+      {
+        batchSize: 200,
+        userName: deps.userName,
+        avatar: chatCache.avatar,
+      },
+    );
+
+    return block;
   }
 
   /**
@@ -111,22 +187,7 @@ export function createReaderCore(deps) {
 
     container.innerHTML = `<div class="novel-loading">加载章节…</div>`;
 
-    // 构建章标题：第一行「N / 总章数」，第二行「第N章 章节名」
-    // （仅当标题来自标签识别时附带章节名，否则只显示「第N章」，与目录一致）
-    // 番外章与主线章统一显示「第N章」（番外也计入编号）
-    const titleEl = document.createElement("h2");
-    titleEl.className = "novel-chapter-title";
-    const totalChapters = chatCache.chapters.length;
-    titleEl.textContent = `${chapter.displayIndex ?? chapter.index} / ${totalChapters} 章`;
-
-    let subtitleText = `第${chapter.displayIndex ?? chapter.index}章`;
-    if (chapter.titleSource === "tag" && chapter.title) {
-      subtitleText += ` ${chapter.title}`;
-    }
-    const subtitleEl = document.createElement("div");
-    subtitleEl.className = "novel-chapter-subtitle";
-    subtitleEl.textContent = subtitleText;
-
+    const { titleEl, subtitleEl } = buildChapterHeader(chapter);
     const inner = document.createElement("div");
     inner.className = "novel-reader-inner";
     inner.appendChild(titleEl);
@@ -236,6 +297,7 @@ export function createReaderCore(deps) {
   return {
     loadChat,
     renderChapter,
+    renderChapterBlock,
     getChatInfo,
     getChapter,
     searchMessages,
