@@ -298,8 +298,10 @@
   );
 }
 
-/* 右上角关闭按钮（×）：与 ⚙ 按钮尺寸一致，仅字体加粗悬停变红 */
+/* 右上角关闭按钮（×）：与 ⚙ 按钮尺寸一致，仅字体加粗悬停变红。
+   position:relative 作为红点角标（.novel-gen-dot）的定位锚点 */
 .novel-icon-close {
+  position: relative;
   font-weight: 700;
   font-size: 0.95rem; /* 与基础 icon-btn 同字号（inherit 会取父级导致变小） */
   line-height: 1;
@@ -4948,5 +4950,101 @@ body.novel-theme-ocean {
   }
   .novel-ss-import-preview-tags {
     max-height: 14vh; /* 极矮视口：标签列表进一步限高，避免挤压按钮 */
+  }
+}
+
+/* ============================================================
+   新楼层生成结束通知（红点闪烁 + 角落气泡）
+   触发：阅读器打开期间，酒馆有楼层生成结束（正常 / 被截断 / 手动停止）
+   交互：点击气泡 = 关闭阅读器弹窗（等同右上角 ×）
+   ============================================================ */
+
+/* 红点角标：固定在 × 关闭按钮的右上角，有新楼层生成结束时持续闪烁。
+   挂在 .novel-icon-close（position:relative）内，绝对定位到按钮右上角。 */
+.novel-gen-dot {
+  display: block; /* span 默认 inline 会忽略宽高；角标需 block 化 */
+  position: absolute;
+  top: -3px;
+  right: -3px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #e53935;
+  box-shadow: 0 0 6px rgba(229, 57, 53, 0.8);
+  animation: novel-gen-dot-blink 1s ease-in-out infinite;
+  cursor: pointer;
+  pointer-events: none; /* 红点不拦截点击，点击落到 × 按钮本身 */
+  box-sizing: border-box;
+}
+
+@keyframes novel-gen-dot-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.2;
+  }
+}
+
+/* 角落气泡：fixed 固定于视口右下角，挂载在 overlay（fixed 层）上。
+   z-index 需高于 dialog 内部内容（搜索面板 z-index:20 等），
+   取 100020 > overlay(100010) 保证永远盖在最顶层。
+   transform 入场动画会创建独立层，不影响 fixed 定位本身。 */
+.novel-gen-toast {
+  position: fixed;
+  right: 24px;
+  bottom: calc(24px + env(safe-area-inset-bottom)); /* 移动端避开底部手势条 */
+  z-index: 100020;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(320px, 88vw);
+  padding: 10px 14px;
+  border-radius: 10px;
+  cursor: pointer;
+  user-select: none;
+  /* 跟随主题：背景/文字/边框与弹窗同源 */
+  background: var(--novel-bg, var(--SmartThemeBlurTintColor, #14161a));
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 22%,
+      transparent
+    );
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.5);
+  font-size: 0.88rem;
+  /* 每次从 display:none 切换回显示时重新播放入场动画 */
+  animation: novel-gen-toast-in 0.25s ease-out;
+}
+
+.novel-gen-toast-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.novel-gen-toast-close {
+  flex: 0 0 auto;
+  font-size: 1rem;
+  font-weight: 700;
+  opacity: 0.6;
+}
+
+.novel-gen-toast-close:hover {
+  opacity: 1;
+}
+
+@keyframes novel-gen-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

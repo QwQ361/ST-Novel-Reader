@@ -15,6 +15,7 @@ import {
   createCfmFolderPanel,
 } from "./features/cfm-bridge/index.js";
 import { createChatlogsCore } from "./features/chatlogs/index.js";
+import { createGenNotifyCore } from "./features/gen-notify/index.js";
 import { createProgressCore } from "./features/progress/index.js";
 import { createReaderCore } from "./features/reader/index.js";
 import { createScrollReader } from "./features/reader/scroll.js";
@@ -179,6 +180,16 @@ jQuery(async () => {
     getStContext: () => getStContext(),
   });
 
+  // 新楼层生成结束/被截断 → 红点闪烁 + 角落气泡通知。
+  // onNotify 转发给可变 genNotifyUi（由 openReaderDialog 内的 bindGenNotifyUi 注入），
+  // 弹窗打开前 genNotifyUi 为 null，通知回调不产生副作用。
+  const genNotify = createGenNotifyCore({
+    ...deps,
+    getStContext: () => getStContext(),
+    onNotify: (info) => genNotifyUi?.(info),
+  });
+  let genNotifyUi = null; // 由 openReaderDialog 注入的 UI 回调（见 bindGenNotifyUi）
+
   const reader = createReaderCore({
     ...deps,
     getChatMessages: (avatar, fileName) =>
@@ -270,6 +281,8 @@ jQuery(async () => {
     if (g.showTocChatActions === undefined) g.showTocChatActions = false;
     // 阅读页是否显示聊天删除/重命名按钮（默认关闭）
     if (g.showReaderChatActions === undefined) g.showReaderChatActions = false;
+    // 新楼层生成结束/被截断通知（默认开启）：顶栏红点闪烁 + 角落气泡
+    if (g.genNotifyEnabled === undefined) g.genNotifyEnabled = true;
     // 番外功能总开关：默认关闭（关闭时楼层无番外按钮、目录不显示番外过滤、指令库入口隐藏）
     if (g.sideStoryEnabled === undefined) g.sideStoryEnabled = false;
     // 番外功能相关子设置（仅 sideStoryEnabled 开启时在设置页显示）
@@ -493,6 +506,13 @@ jQuery(async () => {
       reader.abort();
       // 连续滚动阅读核心：移除滚动监听并清空容器（下次打开重新初始化）
       scrollReader?.destroy();
+      // 生成结束通知：停止监听 + 清除 UI 引用 + 清定时器 + 清零计数
+      genNotify.unsubscribe();
+      genNotifyUi = null;
+      genToastEl = null;
+      clearTimeout(genToastTimer);
+      genToastTimer = 0;
+      genNotify.clear();
       // 注意：不清理 body 上的主题 class —— 阅读器与番外指令库是两个独立弹窗，
       // 用指令库须先关阅读器；body 主题 class 由持久化 themeId 独立维护（syncBodyThemeClass），
       // 保证指令库在阅读器关闭后仍使用阅读器选定的内置主题配色。
@@ -555,7 +575,9 @@ jQuery(async () => {
             : ""
         }
         <button class="novel-icon-btn" data-action="settings" title="全局设置">⚙</button>
-        <button class="novel-icon-btn novel-icon-close" data-action="close" title="关闭">×</button>
+        <button class="novel-icon-btn novel-icon-close" data-action="close" title="关闭">
+          ×<span class="novel-gen-dot" data-gen-dot style="display:none" title="有新楼层生成"></span>
+        </button>
       </div>`;
     content.appendChild(topbarEl);
 
@@ -599,6 +621,9 @@ jQuery(async () => {
     // ---- CFM 文件夹过滤（仅同时安装 CFM 时启用）----
     initCfmCharFilter();
 
+    // ---- 生成结束通知：角落气泡 + 顶栏红点（bindGenNotifyUi 注入 UI 回调）----
+    bindGenNotifyUi(dlg);
+
     // 初始渲染：恢复上次关闭前的页面（无记录则书架首页）
     restoreLastView();
   }
@@ -641,6 +666,69 @@ jQuery(async () => {
   /** 关闭主界面弹窗 */
   function closeReaderDialog() {
     dialogRef?.close();
+  }
+
+  // ============ 新楼层生成结束通知（红点 + 角落气泡） ============
+
+  // 角落气泡 DOM 引用（每次打开弹窗重建；由 bindGenNotifyUi 创建）
+  let genToastEl = null;
+  // 气泡自动收起定时器
+  let genToastTimer = 0;
+
+  /**
+   * 创建生成结束通知的 UI 绑定（在 openReaderDialog 中调用）。
+   * - 红点角标（.novel-gen-dot）已在顶栏 × 关闭按钮内创建（按钮右上角）
+   * - 角落气泡挂到 dlg.overlay（fixed 定位，规避 dialog transform 影响 fixed 子元素）
+   * - 注入 genNotifyUi 回调：有生成结束时显示红点 + 气泡；气泡点击关闭阅读器弹窗
+   * @param {object} dlg createOverlayDialog 返回值
+   */
+  function bindGenNotifyUi(dlg) {
+    // 红点角标（查询已注入的 DOM；开关关闭时红点保持隐藏，不影响本函数）
+    const dotEl = topbarEl?.querySelector("[data-gen-dot]");
+
+    // 角落气泡：挂到 overlay（fixed 定位层，z-index 高于 dialog 内容）。
+    // 始终创建 DOM（与开关解耦）：开关在设置面板中切换时只增删订阅，
+    // 气泡 DOM 随弹窗生命周期创建/销毁，避免"关闭开关→再打开"时气泡缺失。
+    genToastEl = document.createElement("div");
+    genToastEl.className = "novel-gen-toast";
+    genToastEl.style.display = "none";
+    genToastEl.innerHTML = `
+      <span class="novel-gen-toast-text">有新楼层生成</span>
+      <span class="novel-gen-toast-close" title="关闭阅读器">×</span>`;
+    // 点击气泡任意位置 → 关闭阅读器弹窗（等同右上角关闭按钮）
+    genToastEl.addEventListener("click", () => {
+      clearTimeout(genToastTimer);
+      genToastTimer = 0;
+      genNotify.clear();
+      closeReaderDialog();
+    });
+    dlg.overlay.appendChild(genToastEl);
+
+    // 注入 UI 回调：显示红点 + 气泡（气泡 8 秒后自动收起，红点保留）。
+    // 开关关闭时仍可能被 onNotify 调用（订阅已移除则不会触发），
+    // 这里额外校验开关，作为兜底防御。
+    genNotifyUi = ({ count }) => {
+      if (!getGlobalSettings().genNotifyEnabled) return;
+      if (dotEl) {
+        dotEl.style.display = "";
+        dotEl.title = count > 1 ? `有 ${count} 次新楼层生成` : "有新楼层生成";
+      }
+      if (genToastEl) {
+        genToastEl.style.display = "flex";
+        genToastEl.querySelector(".novel-gen-toast-text").textContent =
+          count > 1 ? `有 ${count} 次新楼层生成` : "有新楼层生成";
+      }
+      clearTimeout(genToastTimer);
+      genToastTimer = setTimeout(() => {
+        if (genToastEl) genToastEl.style.display = "none";
+      }, 8000);
+    };
+
+    // 弹窗打开期间订阅生成事件（关闭时在 dlg.onClose 中 unsubscribe）。
+    // 仅开关开启时订阅；开关关闭时保持零订阅（设置面板中再打开时恢复订阅）。
+    if (getGlobalSettings().genNotifyEnabled) {
+      genNotify.subscribe();
+    }
   }
 
   // ============ 关闭位置记忆（重新打开恢复原页面） ============
@@ -1937,6 +2025,18 @@ jQuery(async () => {
       </div>
 
       <div class="novel-settings-row">
+        <div class="novel-settings-label">生成结束通知</div>
+        <label class="novel-switch">
+          <input type="checkbox" class="novel-gen-notify-enabled" ${
+            g.genNotifyEnabled ? "checked" : ""
+          } />
+          <span class="novel-switch-track"></span>
+          <span class="novel-switch-thumb"></span>
+        </label>
+        <div class="novel-settings-hint">阅读器打开时，若酒馆有新楼层生成结束或被截断（含手动停止），顶栏红点闪烁 + 右下角气泡提醒；点击气泡关闭阅读器。</div>
+      </div>
+
+      <div class="novel-settings-row">
         <div class="novel-settings-label">打开时显示</div>
         <select class="novel-start-page-select">
           <option value="last" ${g.startPage !== "home" ? "selected" : ""}>上次关闭的页面</option>
@@ -2167,6 +2267,26 @@ jQuery(async () => {
     sideStoryCollectLibInput?.addEventListener("change", () => {
       g.sideStoryCollectToLib = sideStoryCollectLibInput.checked;
       deps.saveSettings();
+    });
+
+    // ---- 生成结束通知：切换后保存设置 + 同步订阅与当前通知状态 ----
+    const genNotifyInput = content.querySelector(".novel-gen-notify-enabled");
+    genNotifyInput?.addEventListener("change", () => {
+      g.genNotifyEnabled = genNotifyInput.checked;
+      deps.saveSettings();
+      if (g.genNotifyEnabled) {
+        // 重新打开：恢复订阅（bindGenNotifyUi 只在打开弹窗时订阅一次）
+        genNotify.subscribe();
+      } else {
+        // 关闭时：取消订阅 + 隐藏红点与气泡 + 清零
+        genNotify.unsubscribe();
+        const dot = topbarEl?.querySelector("[data-gen-dot]");
+        if (dot) dot.style.display = "none";
+        if (genToastEl) genToastEl.style.display = "none";
+        clearTimeout(genToastTimer);
+        genToastTimer = 0;
+        genNotify.clear();
+      }
     });
 
     // ---- 聊天列表显示操作按钮：切换后保存设置 + 重绘当前页以刷新按钮显隐 ----
