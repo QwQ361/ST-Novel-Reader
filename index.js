@@ -506,8 +506,9 @@ jQuery(async () => {
       reader.abort();
       // 连续滚动阅读核心：移除滚动监听并清空容器（下次打开重新初始化）
       scrollReader?.destroy();
-      // 生成结束通知：停止监听 + 清除 UI 引用 + 清定时器 + 清零计数
-      genNotify.unsubscribe();
+      // 生成结束通知：清除 UI 引用 + 清定时器 + 清零计数。
+      // 注意：不 unsubscribe —— 订阅在插件启动时建立并常驻（见"启动"区），
+      // 弹窗关闭期间后台累计未读计数，下次打开时若有未读立即显示红点+气泡。
       genNotifyUi = null;
       genToastEl = null;
       clearTimeout(genToastTimer);
@@ -686,7 +687,11 @@ jQuery(async () => {
     // 红点角标（查询已注入的 DOM；开关关闭时红点保持隐藏，不影响本函数）
     const dotEl = topbarEl?.querySelector("[data-gen-dot]");
 
-    // 角落气泡：挂到 overlay（fixed 定位层，z-index 高于 dialog 内容）。
+    // 角落气泡：挂到 dialog（position:absolute 定位）。
+    // 全屏：dialog 无定位上下文 → 相对 overlay(fixed, 全屏) → 视口右下角（表现不变）；
+    // 悬浮窗：dialog 是 fixed 定位上下文 → 气泡固定在悬浮窗内右下角，并随窗口拖动/缩放跟随；
+    // 置顶时 overlay 是 pointer-events:none，气泡挂在 dialog 内可随 .novel-dialog-floating
+    // 一起恢复交互，保证置顶时也可点击（之前挂在 overlay 上会被点击穿透）。
     // 始终创建 DOM（与开关解耦）：开关在设置面板中切换时只增删订阅，
     // 气泡 DOM 随弹窗生命周期创建/销毁，避免"关闭开关→再打开"时气泡缺失。
     genToastEl = document.createElement("div");
@@ -702,7 +707,7 @@ jQuery(async () => {
       genNotify.clear();
       closeReaderDialog();
     });
-    dlg.overlay.appendChild(genToastEl);
+    dlg.dialog.appendChild(genToastEl);
 
     // 注入 UI 回调：显示红点 + 气泡（气泡 8 秒后自动收起，红点保留）。
     // 开关关闭时仍可能被 onNotify 调用（订阅已移除则不会触发），
@@ -724,10 +729,12 @@ jQuery(async () => {
       }, 8000);
     };
 
-    // 弹窗打开期间订阅生成事件（关闭时在 dlg.onClose 中 unsubscribe）。
-    // 仅开关开启时订阅；开关关闭时保持零订阅（设置面板中再打开时恢复订阅）。
-    if (getGlobalSettings().genNotifyEnabled) {
-      genNotify.subscribe();
+    // 打开时若已有未读生成结束计数（弹窗关闭期间后台常驻订阅累计），
+    // 立即显示红点 + 气泡，避免"先发送再打开弹窗"漏通知的时序问题。
+    // 注意：订阅在插件启动时建立（见"启动"区），此处不再 subscribe。
+    const pendingNow = genNotify.getPending();
+    if (pendingNow > 0) {
+      genNotifyUi?.({ count: pendingNow, source: "reopen" });
     }
   }
 
@@ -2198,11 +2205,22 @@ jQuery(async () => {
       deps.saveSettings();
     });
 
-    // ---- 阅读窗口模式：切换后保存设置（下次打开阅读器时生效） ----
+    // ---- 阅读窗口模式：切换后保存设置 + 立即生效 ----
+    // 用户选择"全屏 / 悬浮窗"后：直接关闭设置弹窗并重开阅读器，以新模式显示。
+    // 重开走 restoreLastView 恢复到关闭前页面，体验为"原地切换窗口形态"。
     const windowModeInput = content.querySelector(".novel-window-mode-select");
     windowModeInput?.addEventListener("change", () => {
-      g.windowMode = windowModeInput.value;
+      const newMode = windowModeInput.value;
+      if (newMode === g.windowMode) {
+        // 选择与当前一致（一般不会触发 change）：仅关闭设置弹窗
+        dlg.close();
+        return;
+      }
+      g.windowMode = newMode;
       deps.saveSettings();
+      dlg.close(); // 关闭设置弹窗
+      closeReaderDialog(); // 关闭当前阅读器（onClose 同步置 dialogRef=null + saveLastView 记住页面）
+      openReaderDialog(); // 以新模式重开阅读器（restoreLastView 恢复到关闭前页面）
     });
 
     // ---- 显示用户回复：切换后保存设置 + 若在目录/正文页则重新加载当前聊天 ----
@@ -2275,7 +2293,7 @@ jQuery(async () => {
       g.genNotifyEnabled = genNotifyInput.checked;
       deps.saveSettings();
       if (g.genNotifyEnabled) {
-        // 重新打开：恢复订阅（bindGenNotifyUi 只在打开弹窗时订阅一次）
+        // 重新打开：恢复常驻订阅（订阅在插件启动时建立，见"启动"区）
         genNotify.subscribe();
       } else {
         // 关闭时：取消订阅 + 隐藏红点与气泡 + 清零
@@ -3354,6 +3372,14 @@ jQuery(async () => {
 
   initButton();
   subscribeEvents();
+
+  // 新楼层生成结束通知：常驻订阅（幂等）。
+  // 弹窗未打开时后台累计未读计数（genNotifyUi 为 null，onNotify 无副作用）；
+  // 打开阅读器时若有未读立即显示红点+气泡（见 bindGenNotifyUi）。
+  // 开关关闭时零订阅不累计；设置面板中再打开时恢复订阅。
+  if (getGlobalSettings().genNotifyEnabled) {
+    genNotify.subscribe();
+  }
 
   // 按持久化主题同步 body 主题 class：阅读器与指令库独立弹窗，
   // 启动即应用（即使阅读器未打开，指令库也使用阅读器选定的内置主题配色）

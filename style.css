@@ -4987,12 +4987,16 @@ body.novel-theme-ocean {
   }
 }
 
-/* 角落气泡：fixed 固定于视口右下角，挂载在 overlay（fixed 层）上。
-   z-index 需高于 dialog 内部内容（搜索面板 z-index:20 等），
-   取 100020 > overlay(100010) 保证永远盖在最顶层。
-   transform 入场动画会创建独立层，不影响 fixed 定位本身。 */
+/* 角落气泡：absolute 定位到最近的定位祖先（dialog），右下角。
+   - 全屏：.novel-dialog 无定位上下文 → 相对 .novel-overlay(fixed, 铺满视口)
+     → 视口右下角（表现与 fixed 一致）
+   - 悬浮窗：.novel-dialog-floating 是 fixed 定位上下文 → 气泡固定在悬浮窗
+     内右下角，随窗口拖动/缩放跟随；置顶时 overlay pointer-events:none，
+     气泡在 dialog 内随 .novel-dialog-floating 一起恢复交互，保证可点击。
+   z-index 需高于 dialog 内部内容（搜索面板 z-index:20 等），取 100020。
+   transform 入场动画会创建独立层，不影响定位本身。 */
 .novel-gen-toast {
-  position: fixed;
+  position: absolute;
   right: 24px;
   bottom: calc(24px + env(safe-area-inset-bottom)); /* 移动端避开底部手势条 */
   z-index: 100020;
