@@ -17,6 +17,7 @@ import {
 import { createChatlogsCore } from "./features/chatlogs/index.js";
 import { createGenNotifyCore } from "./features/gen-notify/index.js";
 import { createProgressCore } from "./features/progress/index.js";
+import { refreshHtmlAppThemes } from "./features/reader/iframe.js";
 import { createReaderCore } from "./features/reader/index.js";
 import { createScrollReader } from "./features/reader/scroll.js";
 import { createRegexCore } from "./features/regex/index.js";
@@ -140,6 +141,12 @@ jQuery(async () => {
     saveSettings: () => ctx.saveSettingsDebounced?.(),
     // 是否显示 user 回复（设置页开关，默认 true）
     getShowUserReplies: () => getGlobalSettings().showUserReplies,
+    // 是否显示楼层版本切换条（设置页开关，默认 true；关闭后只渲染当前版本，与现状一致）
+    getShowSwipeBar: () => getGlobalSettings().showSwipeBar,
+    // 是否启用 HTML 应用渲染（设置页开关，默认 true；关闭后 ```html 代码块退化为普通代码）
+    getHtmlAppEnabled: () => getGlobalSettings().htmlAppEnabled !== false,
+    // HTML 应用读取主题变量的根元素（阅读器弹窗 .novel-dialog，未打开时返回 null）
+    getHtmlAppRootEl: () => dialogRef?.dialog ?? null,
     // 自动识别标题：返回识别标签（空 = 关闭；非空 = 启用，如 "zj"）
     getChapterTitleTag: () => {
       const g = getGlobalSettings();
@@ -183,9 +190,12 @@ jQuery(async () => {
   // 新楼层生成结束/被截断 → 红点闪烁 + 角落气泡通知。
   // onNotify 转发给可变 genNotifyUi（由 openReaderDialog 内的 bindGenNotifyUi 注入），
   // 弹窗打开前 genNotifyUi 为 null，通知回调不产生副作用。
+  // isReaderOpen：仅当生成结束的那一刻阅读器弹窗处于打开状态才通知——
+  // 用户沉迷阅读看不到酒馆楼层才需要提醒；阅读器未打开时用户已看到楼层，无需通知。
   const genNotify = createGenNotifyCore({
     ...deps,
     getStContext: () => getStContext(),
+    isReaderOpen: () => dialogRef !== null,
     onNotify: (info) => genNotifyUi?.(info),
   });
   let genNotifyUi = null; // 由 openReaderDialog 注入的 UI 回调（见 bindGenNotifyUi）
@@ -281,6 +291,10 @@ jQuery(async () => {
     if (g.showTocChatActions === undefined) g.showTocChatActions = false;
     // 阅读页是否显示聊天删除/重命名按钮（默认关闭）
     if (g.showReaderChatActions === undefined) g.showReaderChatActions = false;
+    // 楼层版本切换条：含多个版本（swipe）的楼层底部显示「‹ 1/N ›」切换条（默认开启）
+    if (g.showSwipeBar === undefined) g.showSwipeBar = true;
+    // HTML 应用：正文中的 ```html 代码块以沙箱 iframe 方式渲染，支持复杂交互界面（默认开启）
+    if (g.htmlAppEnabled === undefined) g.htmlAppEnabled = true;
     // 新楼层生成结束/被截断通知（默认开启）：顶栏红点闪烁 + 角落气泡
     if (g.genNotifyEnabled === undefined) g.genNotifyEnabled = true;
     // 番外功能总开关：默认关闭（关闭时楼层无番外按钮、目录不显示番外过滤、指令库入口隐藏）
@@ -507,8 +521,9 @@ jQuery(async () => {
       // 连续滚动阅读核心：移除滚动监听并清空容器（下次打开重新初始化）
       scrollReader?.destroy();
       // 生成结束通知：清除 UI 引用 + 清定时器 + 清零计数。
-      // 注意：不 unsubscribe —— 订阅在插件启动时建立并常驻（见"启动"区），
-      // 弹窗关闭期间后台累计未读计数，下次打开时若有未读立即显示红点+气泡。
+      // 注意：不 unsubscribe —— 订阅在插件启动时建立并常驻（见"启动"区）。
+      // 是否通知由"生成结束那一刻阅读器是否打开"（isReaderOpen）决定，
+      // 阅读器关闭期间发生的生成结束不会累计，下次打开也不会弹出红点/气泡。
       genNotifyUi = null;
       genToastEl = null;
       clearTimeout(genToastTimer);
@@ -729,13 +744,10 @@ jQuery(async () => {
       }, 8000);
     };
 
-    // 打开时若已有未读生成结束计数（弹窗关闭期间后台常驻订阅累计），
-    // 立即显示红点 + 气泡，避免"先发送再打开弹窗"漏通知的时序问题。
-    // 注意：订阅在插件启动时建立（见"启动"区），此处不再 subscribe。
-    const pendingNow = genNotify.getPending();
-    if (pendingNow > 0) {
-      genNotifyUi?.({ count: pendingNow, source: "reopen" });
-    }
+    // 打开时不再检查 getPending()：订阅在插件启动时建立（见"启动"区），
+    // 但是否通知由"生成结束那一刻阅读器是否打开"（isReaderOpen）决定，
+    // 阅读器关闭期间不会累计计数，故打开时不存在需要补显的未读。
+    // 仅当本次打开期间有生成结束事件时，onNotify 才会驱动红点+气泡。
   }
 
   // ============ 关闭位置记忆（重新打开恢复原页面） ============
@@ -1458,9 +1470,15 @@ jQuery(async () => {
         state.tocPage -= 1;
         renderTocPage(container);
       });
+      // 页码「N / 总页数」：可点击，点击后原地变为数字输入框，手动输入页码跳转
       const infoEl = document.createElement("span");
       infoEl.className = "novel-pager-info";
+      infoEl.dataset.tocPageJump = "1";
+      infoEl.title = "点击跳转到指定页";
       infoEl.textContent = `${state.tocPage + 1} / ${totalPages}`;
+      infoEl.addEventListener("click", () => {
+        startTocPageJump(infoEl, totalPages, () => renderTocPage(container));
+      });
       const nextBtn = document.createElement("button");
       nextBtn.className = "novel-icon-btn";
       nextBtn.textContent = "→";
@@ -1476,6 +1494,65 @@ jQuery(async () => {
     }
 
     container.appendChild(toc);
+  }
+
+  /**
+   * 目录分页器页码跳转：点击「N / 总页数」后原地变为数字输入框。
+   * 输入 1~totalPages，Enter/失焦确认跳转，Escape 取消。
+   * @param {HTMLElement} infoEl 页码元素（.novel-pager-info）
+   * @param {number} totalPages 总页数
+   * @param {() => void} onJump 确认跳转后的重渲染回调
+   */
+  function startTocPageJump(infoEl, totalPages, onJump) {
+    if (infoEl.dataset.tocPageInput === "1") return; // 已处于输入态
+    const current = state.tocPage + 1;
+    infoEl.dataset.tocPageInput = "1";
+    infoEl.textContent = "";
+    const input = document.createElement("input");
+    input.type = "number";
+    input.min = "1";
+    input.max = String(totalPages);
+    input.step = "1";
+    input.value = String(current);
+    input.className = "novel-pager-input";
+    input.setAttribute("aria-label", "跳转到指定页");
+    infoEl.appendChild(input);
+    input.focus();
+    input.select();
+
+    /** 结束输入态并恢复页码显示 */
+    const finish = () => {
+      infoEl.dataset.tocPageInput = "";
+      infoEl.textContent = `${state.tocPage + 1} / ${totalPages}`;
+    };
+    /** 读取输入并跳转（越界自动夹取到 1~totalPages） */
+    const commit = () => {
+      const raw = Number(input.value);
+      const target =
+        Number.isFinite(raw) && raw >= 1
+          ? Math.min(Math.round(raw), totalPages)
+          : 0;
+      if (target && target !== state.tocPage + 1) {
+        state.tocPage = target - 1;
+        onJump?.();
+      }
+    };
+
+    input.addEventListener("keydown", (ev) => {
+      ev.stopPropagation();
+      if (ev.key === "Enter") {
+        ev.preventDefault();
+        input.blur(); // 交由 blur 统一收尾（commit + finish），避免重复触发
+      } else if (ev.key === "Escape") {
+        ev.preventDefault();
+        input.value = ""; // 清空后失焦：commit 因空值不跳转，仅恢复页码
+        input.blur();
+      }
+    });
+    input.addEventListener("blur", () => {
+      commit();
+      finish();
+    });
   }
 
   // ============ 正文阅读页（按章渲染） ============
@@ -1923,7 +2000,14 @@ jQuery(async () => {
       .join("");
 
     content.innerHTML = `
-      <div class="novel-settings-row novel-mode-section">
+      <div class="novel-settings-tabs" role="tablist">
+        <button type="button" class="novel-settings-tab active" data-settings-tab="general" role="tab" aria-selected="true">通用</button>
+        <button type="button" class="novel-settings-tab" data-settings-tab="reading" role="tab" aria-selected="false">阅读</button>
+        <button type="button" class="novel-settings-tab" data-settings-tab="side" role="tab" aria-selected="false">番外与通知</button>
+        <button type="button" class="novel-settings-tab" data-settings-tab="regex" role="tab" aria-selected="false">正则</button>
+      </div>
+
+      <div class="novel-settings-row novel-mode-section" data-settings-group="general">
         <div class="novel-settings-label">按钮位置</div>
         <div class="novel-mode-toggle">
           <button type="button" class="novel-mode-btn ${
@@ -1940,16 +2024,16 @@ jQuery(async () => {
         </div>
       </div>
 
-      <div class="novel-settings-row">
+      <div class="novel-settings-row" data-settings-group="general">
         <div class="novel-settings-label">目录每页章数</div>
         <input type="range" min="10" max="500" step="10" value="${Number(g.chaptersPerPage) || 100}" />
         <div class="novel-settings-value"></div>
       </div>
-      <div class="novel-settings-row">
+      <div class="novel-settings-row" data-settings-group="general">
         <div class="novel-settings-hint">用于目录页的分页显示，修改后立即生效。</div>
       </div>
 
-      <div class="novel-settings-row">
+      <div class="novel-settings-row" data-settings-group="general">
         <div class="novel-settings-label">阅读窗口模式</div>
         <select class="novel-window-mode-select">
           <option value="fullscreen" ${
@@ -1962,7 +2046,7 @@ jQuery(async () => {
         <div class="novel-settings-hint">全屏：阅读器占满整个屏幕；悬浮窗：小窗口显示，可拖动标题栏移动位置，拖动右下角调整大小。</div>
       </div>
 
-      <div class="novel-settings-row">
+      <div class="novel-settings-row" data-settings-group="reading">
         <div class="novel-settings-label">显示用户回复</div>
         <label class="novel-switch">
           <input type="checkbox" class="novel-show-user-input" ${
@@ -1974,7 +2058,31 @@ jQuery(async () => {
         <div class="novel-settings-hint">开启时 user 回复与角色消息合并为一章；关闭后不显示 user 回复，每条角色消息作为单独一章。</div>
       </div>
 
-      <div class="novel-settings-row">
+      <div class="novel-settings-row" data-settings-group="reading">
+        <div class="novel-settings-label">楼层版本切换条</div>
+        <label class="novel-switch">
+          <input type="checkbox" class="novel-show-swipe-bar" ${
+            g.showSwipeBar ? "checked" : ""
+          } />
+          <span class="novel-switch-track"></span>
+          <span class="novel-switch-thumb"></span>
+        </label>
+        <div class="novel-settings-hint">开启后，含多个版本（swipe）的楼层底部显示「‹ 1/N ›」切换条，可查看其它版本并一键回到当前选中版本。</div>
+      </div>
+
+      <div class="novel-settings-row" data-settings-group="reading">
+        <div class="novel-settings-label">HTML 应用</div>
+        <label class="novel-switch">
+          <input type="checkbox" class="novel-html-app-enabled" ${
+            g.htmlAppEnabled !== false ? "checked" : ""
+          } />
+          <span class="novel-switch-track"></span>
+          <span class="novel-switch-thumb"></span>
+        </label>
+        <div class="novel-settings-hint">开启后，正文中的「html 代码块」（三个反引号包 html）以隔离沙箱 iframe 方式渲染，支持脚本与复杂交互界面（如按钮、卡片、小游戏）。关闭后此类代码块按普通代码显示。</div>
+      </div>
+
+      <div class="novel-settings-row" data-settings-group="reading">
         <div class="novel-settings-label">删除与重命名按钮</div>
         <div class="novel-chat-actions-checkbox-row">
           <label class="novel-chat-actions-checkbox">
@@ -1993,7 +2101,7 @@ jQuery(async () => {
         <div class="novel-settings-hint">聊天列表卡片始终显示；目录页与阅读页勾选时才显示。</div>
       </div>
 
-      <div class="novel-settings-row novel-side-story-section">
+      <div class="novel-settings-row novel-side-story-section" data-settings-group="side">
         <div class="novel-settings-label">番外功能</div>
         <label class="novel-switch">
           <input type="checkbox" class="novel-side-story-enabled" ${
@@ -2031,7 +2139,7 @@ jQuery(async () => {
         </div>
       </div>
 
-      <div class="novel-settings-row">
+      <div class="novel-settings-row" data-settings-group="side">
         <div class="novel-settings-label">生成结束通知</div>
         <label class="novel-switch">
           <input type="checkbox" class="novel-gen-notify-enabled" ${
@@ -2040,10 +2148,10 @@ jQuery(async () => {
           <span class="novel-switch-track"></span>
           <span class="novel-switch-thumb"></span>
         </label>
-        <div class="novel-settings-hint">阅读器打开时，若酒馆有新楼层生成结束或被截断（含手动停止），顶栏红点闪烁 + 右下角气泡提醒；点击气泡关闭阅读器。</div>
+        <div class="novel-settings-hint">阅读器打开期间，若酒馆有新楼层生成结束或被截断（含手动停止），顶栏红点闪烁 + 右下角气泡提醒；点击气泡关闭阅读器。生成结束时阅读器未打开（你能看到酒馆楼层）则不会提醒。</div>
       </div>
 
-      <div class="novel-settings-row">
+      <div class="novel-settings-row" data-settings-group="general">
         <div class="novel-settings-label">打开时显示</div>
         <select class="novel-start-page-select">
           <option value="last" ${g.startPage !== "home" ? "selected" : ""}>上次关闭的页面</option>
@@ -2052,7 +2160,7 @@ jQuery(async () => {
         <div class="novel-settings-hint">刷新酒馆后第一次打开阅读器时显示的页面；之后正常关闭再打开（不刷新）会回到上次位置。</div>
       </div>
 
-      <div class="novel-settings-row novel-chapter-title-section">
+      <div class="novel-settings-row novel-chapter-title-section" data-settings-group="reading">
         <div class="novel-settings-label">自动识别标题</div>
         <label class="novel-switch">
           <input type="checkbox" class="novel-auto-chapter-title" ${
@@ -2089,7 +2197,7 @@ jQuery(async () => {
         </div>
       </div>
 
-      <div class="novel-settings-row novel-icon-config-section">
+      <div class="novel-settings-row novel-icon-config-section" data-settings-group="general">
         <div class="novel-settings-label">自定义顶栏图标</div>
         <div class="novel-icon-input-row">
           <input type="text" class="novel-icon-url-input"
@@ -2126,7 +2234,7 @@ jQuery(async () => {
         }</div>
       </div>
 
-      <div class="novel-settings-row novel-regex-section">
+      <div class="novel-settings-row novel-regex-section" data-settings-group="regex">
         <div class="novel-regex-active-summary"></div>
         <div class="novel-regex-label-row">
           <div class="novel-settings-label">全局正则</div>
@@ -2136,7 +2244,7 @@ jQuery(async () => {
         <div class="novel-regex-list"></div>
       </div>
 
-      <div class="novel-settings-row novel-regex-preset-section">
+      <div class="novel-settings-row novel-regex-preset-section" data-settings-group="regex">
         <div class="novel-regex-label-row">
           <div class="novel-settings-label">预设正则</div>
           <button type="button" class="novel-regex-toggle-all" data-scope="preset">全选</button>
@@ -2156,6 +2264,31 @@ jQuery(async () => {
         <select class="novel-regex-preset-select"></select>
         <div class="novel-regex-preset-list"></div>
       </div>`;
+
+    // ---- 标签页分组：切换 Tab 时按 data-settings-group 显隐对应设置项 ----
+    const settingsTabs = content.querySelectorAll(".novel-settings-tab");
+    const settingsGroups = content.querySelectorAll("[data-settings-group]");
+    let activeTab = "general";
+    /** 显示指定分组，隐藏其余 */
+    function showSettingsGroup(name) {
+      activeTab = name;
+      settingsTabs.forEach((tab) => {
+        const on = tab.dataset.settingsTab === name;
+        tab.classList.toggle("active", on);
+        tab.setAttribute("aria-selected", on ? "true" : "false");
+      });
+      settingsGroups.forEach((group) => {
+        const show = group.dataset.settingsGroup === name;
+        group.style.display = show ? "" : "none";
+      });
+    }
+    settingsTabs.forEach((tab) => {
+      tab.addEventListener("click", () =>
+        showSettingsGroup(tab.dataset.settingsTab),
+      );
+    });
+    // 默认只显示「通用」分组
+    showSettingsGroup("general");
 
     // ---- 按钮位置：三按钮切换（立即生效 + 持久化） ----
     const modeSection = content.querySelector(".novel-mode-section");
@@ -2331,6 +2464,27 @@ jQuery(async () => {
       g.showReaderChatActions = showReaderActionsInput.checked;
       deps.saveSettings();
       // 正文页：重新渲染当前章节以应用按钮显隐
+      if (state.page === "reader" && state.currentChapter) {
+        openChapter(state.currentChapter);
+      }
+    });
+
+    // ---- 楼层版本切换条：切换后保存设置 + 重渲染当前章生效 ----
+    const showSwipeBarInput = content.querySelector(".novel-show-swipe-bar");
+    showSwipeBarInput?.addEventListener("change", () => {
+      g.showSwipeBar = showSwipeBarInput.checked;
+      deps.saveSettings();
+      // 正文页：重新渲染当前章节以应用切换条显隐
+      if (state.page === "reader" && state.currentChapter) {
+        openChapter(state.currentChapter);
+      }
+    });
+
+    // ---- HTML 应用开关：保存设置 + 重新渲染当前章节（html 代码块 → 普通代码 ↔ iframe） ----
+    const htmlAppInput = content.querySelector(".novel-html-app-enabled");
+    htmlAppInput?.addEventListener("change", () => {
+      g.htmlAppEnabled = htmlAppInput.checked;
+      deps.saveSettings();
       if (state.page === "reader" && state.currentChapter) {
         openChapter(state.currentChapter);
       }
@@ -3125,6 +3279,12 @@ jQuery(async () => {
       themeTextBridge.setEnabled(true);
     }
     dialogEl.style.color = "";
+    // HTML 应用：主题已应用，向所有 iframe 广播新主题（实时跟随，无需重载）
+    try {
+      refreshHtmlAppThemes(dialogEl);
+    } catch (err) {
+      // 广播失败不影响阅读器
+    }
   }
 
   // ============ 事件订阅 ============

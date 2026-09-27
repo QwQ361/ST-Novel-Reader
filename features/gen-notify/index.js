@@ -1,16 +1,19 @@
 // features/gen-notify/index.js
 // 新楼层生成结束 / 被截断 → 通知状态机。
-// 订阅 ST 的生成事件，累计"待通知的生成结束次数"（pending）。
+// 订阅 ST 的生成事件，当"生成结束的那一刻用户正处于阅读器内"时累计通知（pending）。
 // 纯逻辑层：不操作弹窗 DOM，UI 展示由主入口 index.js 负责。
 //
 // 需求约定（详见 plans/new-chapter-notify.md）：
-//   - 不做"当前阅读聊天"区分：酒馆任意聊天生成结束都计数
-//   - 不区分正常结束 / 手动停止：GENERATION_ENDED 与 GENERATION_STOPPED 统一计数
+//   - 仅在阅读器打开期间发生的生成结束才通知：
+//     用户能看到酒馆楼层（阅读器未打开）时生成完毕，打开阅读器不再出现红点/气泡
+//   - 不做"当前阅读聊天"区分：阅读器打开时酒馆任意聊天生成结束都通知
+//   - 不区分正常结束 / 手动停止：GENERATION_ENDED 与 GENERATION_STOPPED 统一通知
 //   - dryRun（提示词查看器预览）不计数
 //
 // 依赖注入 deps：
 //   getStContext   () => window.SillyTavern.getContext()  拿 eventSource / eventTypes
 //   getSettings    () => extension_settings               读取 genNotifyEnabled 开关
+//   isReaderOpen   () => boolean                          阅读器弹窗当前是否打开（主入口注入 dialogRef !== null）
 //   onNotify       () => void                             有新的生成结束时回调（主入口据此显示红点+气泡）
 
 /**
@@ -28,9 +31,13 @@ export function createGenNotifyCore(deps) {
 
   /**
    * 累计一次生成结束通知。
+   * 仅当生成结束的那一刻阅读器弹窗处于打开状态才通知：
+   * 此时用户沉迷阅读看不到酒馆楼层，需要红点/气泡提醒；
+   * 若阅读器未打开（用户正看着酒馆），楼层已完整可见，无需通知。
    * @param {string} source 触发来源：'ended' | 'stopped'（仅用于日志/未来扩展区分）
    */
   function bump(source) {
+    if (!deps.isReaderOpen()) return; // 阅读器未打开：用户看得到酒馆楼层，不通知
     pending += 1;
     try {
       deps.onNotify?.({ count: pending, source });

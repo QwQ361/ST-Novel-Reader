@@ -708,6 +708,45 @@
   opacity: 0.7;
   min-width: 8em;
   text-align: center;
+  /* 页码可点击：提示可手动输入跳转 */
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 2px 6px;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+.novel-pager-info:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--novel-fg, var(--SmartThemeBodyColor, #ddd))) 15%,
+    transparent
+  );
+}
+/* 目录分页器手动输入页码的数字输入框（内联替换页码文本） */
+.novel-pager-input {
+  width: 4.5em;
+  font-size: 0.85rem;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  background: transparent;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--novel-fg, var(--SmartThemeBodyColor, #ddd))) 40%,
+      transparent
+    );
+  border-radius: 4px;
+  padding: 1px 2px;
+  outline: none;
+}
+.novel-pager-input:focus {
+  border-color: var(
+    --novel-accent,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd))
+  );
 }
 
 /* ---------- 正文阅读页 ---------- */
@@ -891,6 +930,126 @@
 .novel-msg-body img {
   max-width: 100%;
   border-radius: 6px;
+}
+
+/* ---------- HTML 应用（```html 代码块 → 沙箱 iframe） ---------- */
+.novel-html-app {
+  position: relative;
+  margin: 10px 0;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 18%,
+      transparent
+    );
+  border-radius: 8px;
+  overflow: hidden;
+  /* 背景跟随正文主题（内置主题 --novel-bg；跟随酒馆时由采样变量提供） */
+  background: var(--novel-bg, transparent);
+}
+/* 加载中占位高度：iframe 加载完成前保持一个可见的骨架区，避免跳动；
+   ready/高度消息到达后由 JS 写回内联 height（内联样式优先于本规则） */
+.novel-html-app-frame {
+  display: block;
+  width: 100%;
+  height: 160px;
+  border: 0;
+  background: transparent;
+}
+
+/* ---------- 楼层版本切换条（swipe） ---------- */
+.novel-swipe-bar {
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  gap: 6px;
+  margin: 6px auto 0;
+  padding: 2px 8px;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 25%,
+      transparent
+    );
+  border-radius: 999px;
+  opacity: 0.75;
+  transition: opacity 0.2s ease;
+}
+.novel-msg:hover .novel-swipe-bar {
+  opacity: 1;
+}
+.novel-swipe-btn {
+  background: transparent;
+  border: none;
+  color: var(--novel-accent, var(--novel-fg, var(--SmartThemeBodyColor, #ddd)));
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.novel-swipe-btn:hover:not(:disabled) {
+  opacity: 1;
+}
+.novel-swipe-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+.novel-swipe-count {
+  font-size: 0.75rem;
+  opacity: 0.6;
+  min-width: 2.5em;
+  text-align: center;
+  /* 计数可点击：提示可手动输入跳转 */
+  cursor: pointer;
+  border-radius: 4px;
+  padding: 1px 3px;
+  transition:
+    opacity 0.15s ease,
+    background 0.15s ease;
+}
+.novel-swipe-count:hover {
+  opacity: 1;
+  background: color-mix(
+    in srgb,
+    var(--novel-accent, var(--novel-fg, var(--SmartThemeBodyColor, #ddd))) 15%,
+    transparent
+  );
+}
+/* 手动输入跳转的数字输入框（内联替换计数文本） */
+.novel-swipe-input {
+  width: 3.5em;
+  font-size: 0.75rem;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  background: transparent;
+  border: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-accent, var(--novel-fg, var(--SmartThemeBodyColor, #ddd))) 40%,
+      transparent
+    );
+  border-radius: 4px;
+  padding: 1px 2px;
+  outline: none;
+}
+.novel-swipe-input:focus {
+  border-color: var(
+    --novel-accent,
+    var(--novel-fg, var(--SmartThemeBodyColor, #ddd))
+  );
+}
+.novel-swipe-reset {
+  /* 「回到当前版本」按钮：与计数用分隔线区分，置灰态更弱 */
+  margin-left: 4px;
+  padding-left: 8px;
+  border-left: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 20%,
+      transparent
+    );
 }
 
 /* 内联强调元素（em/strong/q）与块引用/代码样式定义在下方「内置主题」区块：
@@ -1277,6 +1436,46 @@ body.novel-theme-ocean {
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+/* 设置弹窗标签页导航（通用 / 阅读 / 番外与通知 / 正则） */
+.novel-settings-tabs {
+  display: flex;
+  gap: 6px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid
+    color-mix(
+      in srgb,
+      var(--novel-fg, var(--SmartThemeBodyColor, #ddd)) 15%,
+      transparent
+    );
+}
+
+.novel-settings-tab {
+  flex: 1 1 0;
+  min-width: 0;
+  border: none;
+  border-radius: 8px;
+  padding: 7px 4px;
+  font: inherit;
+  font-size: 0.82rem;
+  cursor: pointer;
+  color: var(--novel-fg, var(--SmartThemeBodyColor, #ddd));
+  background: transparent;
+  opacity: 0.55;
+  transition:
+    background 0.15s ease,
+    opacity 0.15s ease;
+}
+
+.novel-settings-tab:hover {
+  opacity: 0.85;
+}
+
+.novel-settings-tab.active {
+  background: var(--novel-accent, var(--SmartThemeMainColor, #4f8cff));
+  color: #fff;
+  opacity: 1;
 }
 
 .novel-settings-label {
